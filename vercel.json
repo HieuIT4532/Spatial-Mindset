@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/SpatialMind_Frontend/dist/$1"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/SpatialMind_Frontend/dist/index.html",
+      "permanent": false
+    }
+  ],
+  "builds": [
+    {
+      "src": "SpatialMind_Frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ]
+}
