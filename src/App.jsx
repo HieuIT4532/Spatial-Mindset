@@ -176,8 +176,9 @@ export default function App() {
     
     try {
       // Sử dụng biến môi trường VITE_API_URL để trỏ tới API độc lập (Render)
-      const apiUrl = import.meta.env.VITE_API_URL 
-        ? `${import.meta.env.VITE_API_URL}/api/geometry/calculate` 
+      const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+      const apiUrl = baseUrl 
+        ? `${baseUrl}/api/geometry/calculate` 
         : 'http://localhost:8000/api/geometry/calculate';
         
       const response = await axios.post(apiUrl, {
