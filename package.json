@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "scripts": {
     "build": "cd SpatialMind_Frontend && npm install && npm run build",
-    "install-frontend": "cd SpatialMind_Frontend && npm install"
+    "install": "npm install && cd SpatialMind_Frontend && npm install"
+  },
+  "devDependencies": {
+    "vite": "^8.0.4"
   }
 }
