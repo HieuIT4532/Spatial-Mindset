@@ -1,0 +1,8 @@
+{
+  "name": "spatial-mindset-root",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd SpatialMind_Frontend && npm install && npm run build",
+    "install-frontend": "cd SpatialMind_Frontend && npm install"
+  }
+}
