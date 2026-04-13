@@ -105,7 +105,7 @@ def calculate_geometry(request: GeometryRequest):
         for attempt in range(max_retries):
             try:
                 response = gemini_client.models.generate_content(
-                    model="gemini-3-flash-preview", 
+                    model="gemini-2.0-flash", # Bản 2.0-flash chính thức nhẹ và xử lý tốc độ cực nhanh
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
