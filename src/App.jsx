@@ -175,7 +175,12 @@ export default function App() {
     setError('');
     
     try {
-      const response = await axios.post('/api/geometry/calculate', {
+      // Sử dụng biến môi trường VITE_API_URL để trỏ tới API độc lập (Render)
+      const apiUrl = import.meta.env.VITE_API_URL 
+        ? `${import.meta.env.VITE_API_URL}/api/geometry/calculate` 
+        : 'http://localhost:8000/api/geometry/calculate';
+        
+      const response = await axios.post(apiUrl, {
         query: promptInput
       });
       
