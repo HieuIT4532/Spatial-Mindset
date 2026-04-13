@@ -1,22 +1,5 @@
 {
   "version": 2,
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/SpatialMind_Frontend/dist/$1"
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/SpatialMind_Frontend/dist/index.html",
-      "permanent": false
-    }
-  ],
   "builds": [
     {
       "src": "SpatialMind_Frontend/package.json",
@@ -28,6 +11,29 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1",
+      "continue": true
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "status": 200,
+      "dest": "/index.html"
     }
   ]
 }
