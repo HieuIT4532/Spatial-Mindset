@@ -45,58 +45,22 @@ import ParticleEffect from './components/ParticleEffect';
 import ExplorerMode from './components/ExplorerMode';
 import SharePanel from './components/SharePanel';
 import ProfileDashboard from './components/ProfileDashboard';
+import LandingPage from './components/LandingPage';
+import { getRankInfo } from './components/GameHUD';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
-// =====================
-// Component: Simple 3D Loader
-// =====================
-function SceneLoader() {
-  return (
-    <mesh>
-      <sphereGeometry args={[0.5, 16, 16]} />
-      <meshBasicMaterial color="#22d3ee" wireframe />
-    </mesh>
-  );
-}
-
-// =====================
-// Utility: Preprocess LaTeX from AI
-// =====================
-const preprocessLatex = (text) => {
-  if (!text) return "";
-  return text
-    .replace(/\\\( /g, "$")
-    .replace(/ \\\)/g, "$")
-    .replace(/\\\(/g, "$")
-    .replace(/\\\)/g, "$")
-    .replace(/\\\[ /g, "$$")
-    .replace(/ \\\]/g, "$$")
-    .replace(/\\\[/g, "$$")
-    .replace(/\\\]/g, "$$")
-    .replace(/\\\\/g, "\\");
-};
-
-// =====================
-// XP persistence helpers
-// =====================
-function loadXP() {
-  try { return parseInt(localStorage.getItem('spatialmind_xp') || '0', 10); }
-  catch { return 0; }
-}
-function loadStreak() {
-  try {
-    const stored = JSON.parse(localStorage.getItem('daily_progress') || '{}');
-    return stored.streak || 0;
-  } catch { return 0; }
-}
+// ... (các thành phần khác)
 
 // =====================
 // Component: Main App
 // =====================
 export default function App() {
+  const [isStarted, setIsStarted] = useState(() => {
+    return localStorage.getItem('spatialmind_started') === 'true';
+  });
   const [promptInput, setPromptInput] = useState('');
   const [geometryData, setGeometryData] = useState(null);
   const [hintData, setHintData] = useState(null);
@@ -122,9 +86,60 @@ export default function App() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [explorerPendingGenerate, setExplorerPendingGenerate] = useState(false);
+  
+  // Quiz state
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [quizResult, setQuizResult] = useState(null); // 'correct' | 'wrong' | null
 
   const controlsRef = useRef();
   const generateRef = useRef(null);
+
+  // Sync profile with backend (AppData)
+  const syncProfile = useCallback(async (currentXP, currentStreak) => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+      const { current: r } = getRankInfo(currentXP);
+      
+      await axios.post(`${baseUrl}/api/user/profile`, {
+        name: "Học sinh",
+        xp: currentXP,
+        streak: currentStreak,
+        level: r.level,
+        rank: r.name,
+        achievements: []
+      });
+    } catch (err) {
+      console.warn("Backend offline, syncProfile failed");
+    }
+  }, []);
+
+  // Sync on XP/Streak change
+  useEffect(() => {
+    if (isStarted) {
+      syncProfile(xp, streak);
+    }
+  }, [xp, streak, isStarted, syncProfile]);
+
+  // Load initial profile from backend
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+        const res = await axios.get(`${baseUrl}/api/user/profile`);
+        if (res.data.xp > xp) {
+          setXP(res.data.xp);
+        }
+      } catch (err) {
+        console.warn("Backend offline, sử dụng local data");
+      }
+    };
+    if (isStarted) loadProfile();
+  }, [isStarted]);
+
+  const handleStartApp = () => {
+    setIsStarted(true);
+    localStorage.setItem('spatialmind_started', 'true');
+  };
 
   // Sync theme
   useEffect(() => {
@@ -184,6 +199,8 @@ export default function App() {
     setLoading(true);
     setError('');
     setCompletedSteps(new Set());
+    setSelectedAnswer(null);
+    setQuizResult(null);
     
     try {
       const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
@@ -263,9 +280,39 @@ export default function App() {
     }
   };
 
+  const handleAnswerSelect = (idx) => {
+    if (quizResult === 'correct') return; // Prevent clicking after correct
+    
+    setSelectedAnswer(idx);
+    const isCorrect = idx === geometryData.final_quiz.correct_index;
+    
+    if (isCorrect) {
+      setQuizResult('correct');
+      gainXP(50 + streak * 5); // Base 50 + streak bonus
+      setParticleTrigger(t => t + 2); // Big confetti
+    } else {
+      setQuizResult('wrong');
+      setXP(prev => Math.max(0, prev - 10)); // Penalty
+    }
+  };
+
   return (
     <div className="flex h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-hidden select-none ocean-gradient">
       
+      {/* 🏁 Landing Page Overlay */}
+      <AnimatePresence>
+        {!isStarted && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -100 }}
+            transition={{ duration: 0.8, ease: [0.43, 0.13, 0.23, 0.96] }}
+            className="fixed inset-0 z-[1000]"
+          >
+            <LandingPage onStart={handleStartApp} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 🎮 Game HUD - Top Right */}
       <GameHUD xp={xp} streak={streak} onOpenProfile={() => setIsProfileOpen(true)} />
 
@@ -517,18 +564,68 @@ export default function App() {
                       ))}
                     </div>
 
-                    {/* Completion banner */}
+                    {/* Final Quiz & Completion banner */}
                     {geometryData.steps && completedSteps.size === geometryData.steps.length && geometryData.steps.length > 0 && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3"
+                        className="p-4 rounded-2xl border flex flex-col gap-3"
+                        style={{
+                          background: quizResult === 'correct' ? 'rgba(16, 185, 129, 0.1)' : quizResult === 'wrong' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 211, 238, 0.05)',
+                          borderColor: quizResult === 'correct' ? 'rgba(16, 185, 129, 0.3)' : quizResult === 'wrong' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 211, 238, 0.2)'
+                        }}
                       >
-                        <Trophy size={18} className="text-emerald-400 shrink-0" />
-                        <div>
-                          <p className="text-emerald-400 font-black text-sm">Hoàn thành! 🎉</p>
-                          <p className="text-emerald-300/60 text-[10px]">+{geometryData.xp_reward || 50} XP đã được cộng</p>
-                        </div>
+                        {geometryData.final_quiz ? (
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
+                              {quizResult === 'correct' ? <Trophy size={16} className="text-emerald-400" /> : <Info size={16} className="text-cyan-400" />}
+                              <p className={`font-black text-xs uppercase tracking-widest ${quizResult === 'correct' ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                                {quizResult === 'correct' ? 'Chính xác! 🎉' : 'Chốt đáp án cuối cùng'}
+                              </p>
+                            </div>
+                            <div className="text-[12px] text-slate-200">
+                               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                  {preprocessLatex(geometryData.final_quiz.question)}
+                               </ReactMarkdown>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              {geometryData.final_quiz.options.map((opt, oIdx) => (
+                                <button
+                                  key={oIdx}
+                                  onClick={() => handleAnswerSelect(oIdx)}
+                                  disabled={quizResult === 'correct'}
+                                  className={`p-2 rounded-xl text-left text-[11px] font-medium transition-all ${
+                                    selectedAnswer === oIdx
+                                      ? quizResult === 'correct'
+                                        ? 'bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.5)] border border-emerald-500 text-emerald-200'
+                                        : quizResult === 'wrong'
+                                          ? 'bg-red-500/20 border border-red-500 text-red-200 animate-[shake_0.5s_ease-in-out]'
+                                          : 'bg-cyan-500/20 border border-cyan-400 text-cyan-200'
+                                      : 'bg-black/20 hover:bg-white/10 border border-white/10 text-slate-300'
+                                  }`}
+                                >
+                                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                    {preprocessLatex(opt)}
+                                  </ReactMarkdown>
+                                </button>
+                              ))}
+                            </div>
+                            {quizResult === 'correct' && (
+                               <p className="text-emerald-300/60 text-[10px] mt-1">+{50 + streak * 5} XP (Gồm Streak Bonus)</p>
+                            )}
+                            {quizResult === 'wrong' && (
+                               <p className="text-red-400/80 text-[10px] mt-1 text-center">Sai rồi! Bị trừ 10 XP. Hãy thử lại.</p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <Trophy size={18} className="text-emerald-400 shrink-0" />
+                            <div>
+                              <p className="text-emerald-400 font-black text-sm">Hoàn thành! 🎉</p>
+                              <p className="text-emerald-300/60 text-[10px]">+{geometryData.xp_reward || 50} XP đã được cộng</p>
+                            </div>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </motion.div>
@@ -791,6 +888,13 @@ export default function App() {
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          50% { transform: translateX(5px); }
+          75% { transform: translateX(-5px); }
+        }
       `}} />
     </div>
   );

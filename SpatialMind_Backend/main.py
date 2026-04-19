@@ -90,6 +90,12 @@ class Step(BaseModel):
     hint: str = Field(..., description="Gợi ý ngắn gọn cho học sinh")
     draw_elements: List[DrawElement] = Field(default_factory=list, description="Thành phần cần vẽ thêm trong bước này")
 
+class QuizRec(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    question: str = Field(..., description="Câu hỏi trắc nghiệm cuối cùng dạng LaTeX")
+    options: List[str] = Field(..., description="4 đáp án A, B, C, D (đã xáo trộn)")
+    correct_index: int = Field(..., description="Index của đáp án đúng (0-3)")
+
 class GeometryResponseOutput(BaseModel):
     model_config = ConfigDict(extra='ignore')
     type: str = Field(..., description="'3D' cho hình học không gian, '2D' cho đồ thị")
@@ -101,6 +107,7 @@ class GeometryResponseOutput(BaseModel):
     hint: str = Field(..., description="Lời khuyên tổng quan cho cả đề bài")
     xp_reward: int = Field(50, description="XP phần thưởng (10-200)")
     difficulty: str = Field("medium", description="Độ khó: easy, medium, hard")
+    final_quiz: Optional[QuizRec] = Field(None, description="Câu hỏi trắc nghiệm cuối cùng (tự sinh)")
 
 class SocraticRequest(BaseModel):
     problem_statement: str
@@ -132,8 +139,8 @@ def calculate_geometry(request: GeometryRequest):
         raise HTTPException(status_code=500, detail="Gemini API chưa được cấu hình.")
 
     try:
-        system_instruction = """Bạn là một chuyên gia Toán học và Visualizer. 
-Nhiệm vụ: Phân tích đề bài (Text + Image) và chuyển đổi thành cấu trúc JSON để hiển thị Toán học 2D/3D. 
+        system_instruction = """Bạn là một chuyên gia Toán học và Visualizer cao cấp. 
+Nhiệm vụ: Phân tích đề bài (Text + Image) và chuyển đổi thành cấu trúc JSON để hiển thị Toán học 2D/3D sinh động.
 
 BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
 {
@@ -145,17 +152,30 @@ BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
   "steps": [
     {
       "step_number": 1,
-      "explanation": "...",
-      "hint": "...",
-      "draw_elements": [ {"type": "line", "from": "A", "to": "B", "color": "red"}, ... ]
+      "explanation": "Giải thích chi tiết bằng Markdown + LaTeX",
+      "hint": "Gợi ý ngắn",
+      "draw_elements": [ {"type": "line", "from": "A", "to": "B", "color": "red", "style": "solid/dashed"}, ... ]
     }
   ],
   "hint": "Lời khuyên tổng quan",
   "xp_reward": 50,
-  "difficulty": "medium"
+  "difficulty": "easy/medium/hard",
+  "final_quiz": {
+    "question": "Câu hỏi trắc nghiệm chốt lại kiến thức quan trọng nhất hoặc kết quả cuối cùng (dạng LaTeX)",
+    "options": ["A. $...$", "B. $...$", "C. $...$", "D. $...$"],
+    "correct_index": 0
+  }
 }
 
-QUY TẮC: (x, y, z) 3D, nét đứt cho cạnh khuất, gán XP thưởng."""
+QUY TẮC QUAN TRỌNG:
+1. Tọa độ (x, y, z): Sử dụng hệ tọa độ Descartes chuẩn.
+2. Nét vẽ: Cạnh khuất BẮT BUỘC để `style: "dashed"`.
+3. Quiz: 
+   - Câu hỏi phải mang tính kiểm tra sự hiểu biết của học sinh sau khi xem lời giải.
+   - 4 đáp án phải đồng nhất về định dạng LaTeX. 
+   - Đáp án nhiễu phải được tính toán dựa trên các lỗi sai phổ biến của học sinh.
+   - Luôn xáo trộn vị trí đáp án đúng và cập nhật `correct_index` tương ứng.
+4. XP Reward: Dựa trên độ phức tạp (Easy: 30-50, Medium: 60-100, Hard: 120-200)."""
 
         contents = [f"Đề bài: {request.query}"]
         if request.image:
@@ -207,7 +227,8 @@ QUY TẮC: (x, y, z) 3D, nét đứt cho cạnh khuất, gán XP thưởng."""
             "steps": data.get("steps", []),
             "hint": data.get("hint", "AI đã phân tích xong đề bài."),
             "xp_reward": data.get("xp_reward", 50),
-            "difficulty": data.get("difficulty", "medium")
+            "difficulty": data.get("difficulty", "medium"),
+            "final_quiz": data.get("final_quiz")
         }
         
     except Exception as e:
@@ -334,37 +355,67 @@ def get_socratic_hint(request: SocraticRequest):
         raise HTTPException(status_code=400, detail=f"Lỗi xử lý gợi ý: {str(e)}")
 
 
-# --- Daily Challenge Endpoint ---
-class DailyChallengeResponse(BaseModel):
-    date: str
-    challenges: List[Dict[str, Any]]
+# --- AppData Storage Logic ---
+def get_appdata_dir():
+    if os.name == 'nt': # Windows
+        base_dir = os.getenv('APPDATA')
+    else: # Linux/Mac
+        base_dir = os.path.expanduser('~')
+    
+    app_dir = os.path.join(base_dir, 'SpatialMind')
+    if not os.path.exists(app_dir):
+        os.makedirs(app_dir)
+    return app_dir
 
-@app.get("/api/daily-challenge", response_model=DailyChallengeResponse)
-def get_daily_challenge():
-    """Trả về 3 bài toán ngẫu nhiên mỗi ngày (seed theo ngày để ai cũng có cùng bài)."""
-    today = str(date.today())
-    # Seed random theo ngày → cùng ngày cùng bài
-    seed = int(today.replace('-', ''))
-    rng = random.Random(seed)
-    
-    if not CHALLENGE_BANK:
-        raise HTTPException(status_code=500, detail="Challenge bank trống.")
-    
-    # Chọn 1 easy, 1 medium, 1 hard
-    easy = [c for c in CHALLENGE_BANK if c['difficulty'] == 'easy']
-    medium = [c for c in CHALLENGE_BANK if c['difficulty'] == 'medium']
-    hard = [c for c in CHALLENGE_BANK if c['difficulty'] == 'hard']
-    
-    selected = []
-    if easy: selected.append(rng.choice(easy))
-    if medium: selected.append(rng.choice(medium))
-    if hard: selected.append(rng.choice(hard))
-    
-    # Fallback nếu thiếu
-    while len(selected) < 3 and CHALLENGE_BANK:
-        selected.append(rng.choice(CHALLENGE_BANK))
-    
-    return DailyChallengeResponse(date=today, challenges=selected[:3])
+def load_json_data(filename, default_value):
+    path = os.path.join(get_appdata_dir(), filename)
+    if not os.path.exists(path):
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(default_value, f, ensure_ascii=False, indent=2)
+        return default_value
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return default_value
+
+def save_json_data(filename, data):
+    path = os.path.join(get_appdata_dir(), filename)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+# --- User Endpoints ---
+class UserProfile(BaseModel):
+    name: str = "Học sinh"
+    xp: int = 0
+    streak: int = 0
+    level: int = 1
+    rank: str = "Beginner"
+    achievements: List[str] = []
+
+@app.get("/api/user/profile")
+def get_profile():
+    return load_json_data('user_profile.json', UserProfile().model_dump())
+
+@app.post("/api/user/profile")
+def update_profile(profile: UserProfile):
+    save_json_data('user_profile.json', profile.model_dump())
+    return {"status": "success"}
+
+@app.get("/api/leaderboard")
+def get_leaderboard():
+    # Mock data kết hợp với user thực tế
+    default_board = [
+        {"name": "Minh Tú", "weeklyXP": 1240, "rank": "Diamond"},
+        {"name": "Hà Linh", "weeklyXP": 980, "rank": "Platinum"},
+        {"name": "Đức Khải", "weeklyXP": 870, "rank": "Platinum"},
+    ]
+    user_data = load_json_data('user_profile.json', UserProfile().model_dump())
+    # Thêm user hiện tại vào board
+    board = default_board + [{"name": user_data['name'], "weeklyXP": int(user_data['xp'] * 0.6), "rank": user_data['rank']}]
+    return sorted(board, key=lambda x: x['weeklyXP'], reverse=True)
+
+# --- Existing Endpoints ---
 
 
 if __name__ == "__main__":

@@ -78,11 +78,11 @@ function AnimatedEdge({ points, color, lineWidth, dashed, stepIndex, currentStep
     <Line
       points={points}
       color={color}
-      lineWidth={lineWidth || 2}
+      lineWidth={lineWidth || 4}
       dashed={dashed}
       dashScale={1}
-      dashSize={0.2}
-      gapSize={0.15}
+      dashSize={0.4}
+      gapSize={0.25}
       transparent
       opacity={0.9}
     />
@@ -151,7 +151,8 @@ function ClickableEdge({ from, to, color, lineWidth, dashed, onClick, isHighligh
   }, [from, to]);
 
   const glowColor = isHighlighted ? '#fbbf24' : (COLORS[color] || COLORS.blue);
-  const glowWidth = isHighlighted ? (lineWidth || 2) + 4 : (lineWidth || 2);
+  const finalLineWidth = dashed ? 2.5 : (lineWidth || 4);
+  const glowWidth = isHighlighted ? finalLineWidth + 3 : finalLineWidth;
 
   return (
     <group>
@@ -161,10 +162,11 @@ function ClickableEdge({ from, to, color, lineWidth, dashed, onClick, isHighligh
         lineWidth={glowWidth}
         dashed={dashed}
         dashScale={1}
-        dashSize={0.2}
-        gapSize={0.15}
+        dashSize={0.4}
+        gapSize={0.25}
         transparent
-        opacity={isHighlighted ? 1 : 0.75}
+        opacity={isHighlighted ? 1 : (dashed ? 0.6 : 0.8)}
+        depthTest={!dashed}
       />
       {/* Invisible wider tube for click detection */}
       <mesh
@@ -280,20 +282,23 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
   const baseEdges = useMemo(() => {
     if (!data.edges) return [];
     return data.edges.map((edge, idx) => {
-      const [fromKey, toKey, colorKey] = Array.isArray(edge) ? edge : [edge[0], edge[1]];
+      // edge could be ["A", "B", "color", "style"]
+      const [fromKey, toKey, colorKey, styleKey] = Array.isArray(edge) ? edge : [edge[0], edge[1]];
       const p1 = data.vertices[fromKey];
       const p2 = data.vertices[toKey];
       if (!p1 || !p2) return null;
       const edgeKey = `${fromKey}-${toKey}`;
       const isHighlighted = highlighted?.key === edgeKey;
       const color = colorKey || (theme === 'dark' ? 'black' : 'white');
+      const dashed = styleKey === 'dashed';
       return (
         <ClickableEdge
           key={`base-edge-${idx}`}
           edgeKey={edgeKey}
           from={p1} to={p2}
           color={color}
-          lineWidth={2}
+          lineWidth={4}
+          dashed={dashed}
           isHighlighted={isHighlighted}
           onClick={handleEdgeClick}
         />
@@ -312,19 +317,21 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
           if (el.type === 'line') {
             const p1 = data.vertices[el.from || el.from_point];
             const p2 = data.vertices[el.to || el.to_point];
+            const isDashed = el.style === 'dashed';
             if (p1 && p2) {
               elements.push(
                 <Line
                   key={key}
                   points={[p1, p2]}
                   color={COLORS[el.color] || COLORS.red}
-                  lineWidth={el.style === 'solid' ? 5 : 3}
-                  dashed={el.style === 'dashed'}
+                  lineWidth={isDashed ? 2.5 : 4}
+                  dashed={isDashed}
                   dashScale={1}
-                  dashSize={0.2}
-                  gapSize={0.15}
+                  dashSize={0.4}
+                  gapSize={0.25}
                   transparent
-                  opacity={0.9}
+                  opacity={isDashed ? 0.6 : 0.9}
+                  depthTest={!isDashed}
                 />
               );
             }
