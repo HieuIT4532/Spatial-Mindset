@@ -58,7 +58,7 @@ class GeometryRequest(BaseModel):
     image: Optional[str] = Field(None, description="Dữ liệu ảnh base64 (nếu có)")
 
 class DrawElement(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
     type: str  # "line", "point", "vector", "right_angle", "function"
     from_point: Optional[str] = Field(None, alias="from")
     to_point: Optional[str] = Field(None, alias="to")
@@ -67,31 +67,31 @@ class DrawElement(BaseModel):
     style: str = "solid"
 
 class VectorRec(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     id: str = Field(..., description="ID vector")
     start: List[float] = Field(default=[0,0,0], description="Gốc")
     direction: List[float] = Field(..., description="Hướng")
     length: float = Field(2.0, description="Độ dài")
 
 class FunctionRec(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     expression: str = Field(..., description="Biểu thức hàm số (vd: 'Math.sin(x)')")
     color: str = Field("blue", description="Màu đồ thị")
 
 class VertexRec(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     name: str = Field(..., description="Tên đỉnh (vd: 'A')")
     coords: List[float] = Field(..., description="Tọa độ [x, y, z]")
 
 class Step(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     step_number: int = Field(..., description="Thứ tự bước giải")
     explanation: str = Field(..., description="Giải thích chi tiết cho bước này")
     hint: str = Field(..., description="Gợi ý ngắn gọn cho học sinh")
     draw_elements: List[DrawElement] = Field(default_factory=list, description="Thành phần cần vẽ thêm trong bước này")
 
 class GeometryResponseOutput(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     type: str = Field(..., description="'3D' cho hình học không gian, '2D' cho đồ thị")
     vertices: List[VertexRec] = Field(default_factory=list, description="Danh sách các đỉnh")
     edges: List[List[str]] = Field(default_factory=list, description="Danh sách các cạnh [ ['A', 'B'], ['B', 'C'] ]")
