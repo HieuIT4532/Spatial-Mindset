@@ -7,7 +7,7 @@ from datetime import date
 import sympy as sp
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from google import genai
@@ -58,7 +58,7 @@ class GeometryRequest(BaseModel):
     image: Optional[str] = Field(None, description="Dữ liệu ảnh base64 (nếu có)")
 
 class DrawElement(BaseModel):
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     type: str  # "line", "point", "vector", "right_angle", "function"
     from_point: Optional[str] = Field(None, alias="from")
     to_point: Optional[str] = Field(None, alias="to")
@@ -66,20 +66,41 @@ class DrawElement(BaseModel):
     color: str = "black"
     style: str = "solid"
 
-class Step(BaseModel):
-    step_number: int
-    explanation: str
-    draw_elements: List[DrawElement]
+class VectorRec(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(..., description="ID vector")
+    start: List[float] = Field(default=[0,0,0], description="Gốc")
+    direction: List[float] = Field(..., description="Hướng")
+    length: float = Field(2.0, description="Độ dài")
 
-# GeometryResponse is not used directly as return type in calculate_geometry but kept for reference
-class GeometryResponse(BaseModel):
-    type: str
-    vertices: Dict[str, List[float]]
-    edges: List[List[str]]
-    vectors: List[Dict[str, Any]]
-    functions: List[Dict[str, Any]]
-    steps: List[Step]
-    hint: Optional[str] = None
+class FunctionRec(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    expression: str = Field(..., description="Biểu thức hàm số (vd: 'Math.sin(x)')")
+    color: str = Field("blue", description="Màu đồ thị")
+
+class VertexRec(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(..., description="Tên đỉnh (vd: 'A')")
+    coords: List[float] = Field(..., description="Tọa độ [x, y, z]")
+
+class Step(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    step_number: int = Field(..., description="Thứ tự bước giải")
+    explanation: str = Field(..., description="Giải thích chi tiết cho bước này")
+    hint: str = Field(..., description="Gợi ý ngắn gọn cho học sinh")
+    draw_elements: List[DrawElement] = Field(default_factory=list, description="Thành phần cần vẽ thêm trong bước này")
+
+class GeometryResponseOutput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    type: str = Field(..., description="'3D' cho hình học không gian, '2D' cho đồ thị")
+    vertices: List[VertexRec] = Field(default_factory=list, description="Danh sách các đỉnh")
+    edges: List[List[str]] = Field(default_factory=list, description="Danh sách các cạnh [ ['A', 'B'], ['B', 'C'] ]")
+    vectors: List[VectorRec] = Field(default_factory=list, description="Danh sách vector")
+    functions: List[FunctionRec] = Field(default_factory=list, description="Công thức hàm số cho 2D")
+    steps: List[Step] = Field(default_factory=list, description="Các bước giải chi tiết")
+    hint: str = Field(..., description="Lời khuyên tổng quan cho cả đề bài")
+    xp_reward: int = Field(50, description="XP phần thưởng (10-200)")
+    difficulty: str = Field("medium", description="Độ khó: easy, medium, hard")
 
 class SocraticRequest(BaseModel):
     problem_statement: str
@@ -101,90 +122,8 @@ class AlgebraResponse(BaseModel):
 
 # --- Prompt & logic từ gemini_spatial_parser.py ---
 # --- Prompt & logic upgrade ---
-SYSTEM_PROMPT = """
-Bạn là một chuyên gia Toán học và Visualizer.
-Nhiệm vụ: Phân tích đề bài (Text + Image) và chuyển đổi thành cấu trúc JSON để hiển thị Toán học 2D/3D.
+# Schema definition is now handled by Pydantic models above (GeometryResponseOutput)
 
-QUY TẮC HIỂN THỊ:
-1. Nếu là Hình học không gian: type="3D", dùng vertices (object) và edges.
-2. Nếu là Đồ thị hàm số: type="2D", dùng functions (mảng các biểu thức có tiền tố Math. ví dụ Math.sin(x)).
-3. Nếu là Vector: Thêm vào mảng vectors.
-4. Chế độ tọa độ 3D (Three.js):
-   - Đỉnh thường đặt tại z=0 cho đáy. a=2.0, h=3.0 mặc định.
-   - Nét đứt (style="dashed") cho các cạnh khuất.
-5. Vẽ biểu tượng vuông góc: Dùng type="right_angle".
-6. Tô màu cạnh: Trong mảng edges, thêm trường "color" để phân biệt:
-   - Cạnh đáy chính: "color": "blue"
-   - Cạnh bên: "color": "white"
-   - Cạnh ẩn/phụ: "color": "gray"
-   - Cạnh được highlight trong bài toán: "color": "red"
-7. Đánh giá độ khó và ước tính XP phần thưởng (1-200): trả về field "xp_reward" (int).
-8. Trả về "difficulty": "easy" | "medium" | "hard"
-
-BẮT BUỘC TRẢ VỀ JSON KHÔNG CÓ TEXT DƯ QUY ĐỊNH SAU:
-"""
-
-MATH_JSON_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "type": { "type": "string" },
-        "vertices": {
-            "type": "object",
-            "additionalProperties": { "type": "array", "items": { "type": "number" } }
-        },
-        "edges": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
-        "vectors": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "start": {"type": "array", "items": {"type": "number"}},
-                    "direction": {"type": "array", "items": {"type": "number"}},
-                    "length": {"type": "number"}
-                }
-            }
-        },
-        "functions": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "expression": {"type": "string"},
-                    "color": {"type": "string"}
-                }
-            }
-        },
-        "steps": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "step_number": {"type": "integer"},
-                    "explanation": {"type": "string"},
-                    "hint": {"type": "string"},
-                    "draw_elements": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "type": {"type": "string"},
-                                "from": {"type": "string"},
-                                "to": {"type": "string"},
-                                "name": {"type": "string"},
-                                "color": {"type": "string"},
-                                "style": {"type": "string"}
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "hint": {"type": "string"},
-        "xp_reward": {"type": "integer"},
-        "difficulty": {"type": "string"}
-    }
-}
 
 
 @app.post("/api/geometry/calculate")
@@ -193,37 +132,58 @@ def calculate_geometry(request: GeometryRequest):
         raise HTTPException(status_code=500, detail="Gemini API chưa được cấu hình.")
 
     try:
-        contents = [SYSTEM_PROMPT, f"Đề bài: {request.query}"]
-        
-        # Nếu có ảnh, đính kèm vào nội dung gửi cho Gemini
+        system_instruction = """Bạn là một chuyên gia Toán học và Visualizer. 
+Nhiệm vụ: Phân tích đề bài (Text + Image) và chuyển đổi thành cấu trúc JSON để hiển thị Toán học 2D/3D. 
+
+BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
+{
+  "type": "3D" hoặc "2D",
+  "vertices": [ {"name": "A", "coords": [x,y,z]}, ... ],
+  "edges": [ ["A", "B", "color"], ... ],
+  "vectors": [ {"id": "v1", "start": [0,0,0], "direction": [1,1,1], "length": 2}, ... ],
+  "functions": [ {"expression": "Math.sin(x)", "color": "blue"}, ... ],
+  "steps": [
+    {
+      "step_number": 1,
+      "explanation": "...",
+      "hint": "...",
+      "draw_elements": [ {"type": "line", "from": "A", "to": "B", "color": "red"}, ... ]
+    }
+  ],
+  "hint": "Lời khuyên tổng quan",
+  "xp_reward": 50,
+  "difficulty": "medium"
+}
+
+QUY TẮC: (x, y, z) 3D, nét đứt cho cạnh khuất, gán XP thưởng."""
+
+        contents = [f"Đề bài: {request.query}"]
         if request.image:
-            # Xử lý base64 string
-            image_data = request.image
-            if "data:image" in image_data:
-                image_data = image_data.split(",")[1]
+            image_data = request.image.split(",")[-1] if "," in request.image else request.image
             contents.append(types.Part.from_bytes(data=base64.b64decode(image_data), mime_type="image/jpeg"))
 
         response = gemini_client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-1.5-flash", 
             contents=contents,
             config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
                 response_mime_type="application/json",
-                response_schema=MATH_JSON_SCHEMA,
                 temperature=0.1
             )
         )
 
-        data = json.loads(response.text.strip())
+        data_raw = json.loads(response.text.strip())
+        data_obj = GeometryResponseOutput(**data_raw)
+        data = data_obj.model_dump()
         
-        # Chuyển đổi tọa độ Oxyz của AI sang coordinate system của Three.js (Y là chiều cao)
-        # Transformation: (x, y, z) AI -> (x, z, -y) Three.js
-        raw_vertices = data.get("vertices", {})
+        # Chuyển đổi List[VertexRec] ngược lại thành Dict cho frontend
         formatted_vertices = {}
-        if isinstance(raw_vertices, dict):
-            for name, coords in raw_vertices.items():
-                if len(coords) == 3:
-                    formatted_vertices[name] = [coords[0], coords[2], -coords[1]]
-
+        for v in data.get("vertices", []):
+            coords = v.get("coords", [0, 0, 0])
+            if len(coords) == 3:
+                # Transformation: (x, y, z) AI -> (x, z, -y) Three.js
+                formatted_vertices[v["name"]] = [coords[0], coords[2], -coords[1]]
+        
         # Chuyển đổi tọa độ cho Vectors (Sync with vertices)
         raw_vectors = data.get("vectors", [])
         formatted_vectors = []
@@ -245,7 +205,7 @@ def calculate_geometry(request: GeometryRequest):
             "vectors": formatted_vectors,
             "functions": data.get("functions", []),
             "steps": data.get("steps", []),
-            "hint": data.get("steps", [{}])[0].get("hint", "AI đã phân tích xong đề bài."),
+            "hint": data.get("hint", "AI đã phân tích xong đề bài."),
             "xp_reward": data.get("xp_reward", 50),
             "difficulty": data.get("difficulty", "medium")
         }
@@ -279,7 +239,7 @@ def solve_algebra(request: AlgebraRequest):
     
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-1.5-flash",
             contents=f"{ALGEBRA_SOLVER_PROMPT}\n\nĐề bài: {request.query}",
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
