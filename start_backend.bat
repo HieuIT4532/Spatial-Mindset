@@ -13,10 +13,11 @@ IF NOT EXIST venv (
 
 echo [2/3] Kich hoat moi truong va cai dat thu vien...
 call venv\Scripts\activate.bat
-pip install -r requirements.txt -q
+python -m pip install --upgrade pip -q
+python -m pip install -r requirements.txt -q
 
 echo [3/3] Dang khoi dong Server FastAPI tai http://localhost:8000
 echo Nhan Ctrl+C de dung chay.
 echo ==================================================
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 pause

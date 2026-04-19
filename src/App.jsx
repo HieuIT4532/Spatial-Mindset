@@ -1,7 +1,7 @@
-import React, { useState, useRef, Suspense } from 'react';
+import React, { useState, useRef, Suspense, useEffect } from 'react';
 import axios from 'axios';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Line, Sphere, Stars, Float, PerspectiveCamera, ContactShadows } from '@react-three/drei';
+import { OrbitControls, Line, Sphere, Stars, Float, PerspectiveCamera, ContactShadows, Sky } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -15,11 +15,23 @@ import {
   Copy, 
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  LayoutDashboard,
+  Dna,
+  Layers,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Components
 import GeometryViewer from './components/GeometryViewer';
+import FunctionPlotter from './components/Math/FunctionPlotter';
+import Graph2DViewer from './components/Math/Graph2DViewer';
+import SpatialVector from './components/Math/SpatialVector';
+import ImageUpload from './components/ImageUpload';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -32,12 +44,29 @@ function SceneLoader() {
   return (
     <mesh>
       <sphereGeometry args={[0.5, 16, 16]} />
-      <meshBasicMaterial color="#3b82f6" wireframe />
+      <meshBasicMaterial color="#22d3ee" wireframe />
     </mesh>
   );
 }
 
 // (GeometryModel has been replaced by GeometryViewer component)
+
+// =====================
+// Utility: Preprocess LaTeX from AI
+// =====================
+const preprocessLatex = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/\\\( /g, "$")
+    .replace(/ \\\)/g, "$")
+    .replace(/\\\(/g, "$")
+    .replace(/\\\)/g, "$")
+    .replace(/\\\[ /g, "$$")
+    .replace(/ \\\]/g, "$$")
+    .replace(/\\\[/g, "$$")
+    .replace(/\\\]/g, "$$")
+    .replace(/\\\\/g, "\\"); // Fix double escaping common in JSON
+};
 
 // =====================
 // Component: Hint Panel (Slide Over)
@@ -57,18 +86,11 @@ function HintPanel({ hint, isOpen, onClose }) {
       {isOpen && (
         <>
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[100] cursor-pointer"
-          />
-          <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full max-w-lg bg-slate-900 border-l border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] z-[101] flex flex-col"
+            transition={{ type: 'spring', damping: 30, stiffness: 200 }}
+            className="fixed top-0 right-0 h-full w-[30%] bg-black/40 backdrop-blur-3xl border-l border-white/5 shadow-2xl z-[101] flex flex-col aqua-glass"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900/50">
@@ -77,9 +99,9 @@ function HintPanel({ hint, isOpen, onClose }) {
                   <Lightbulb size={20} className="text-emerald-400" />
                 </div>
                 <div>
-                  <h2 className="text-white font-bold text-lg leading-none">Gợi ý Giải bài</h2>
-                  <p className="text-slate-500 text-xs mt-1.5 flex items-center gap-1">
-                    <Sparkles size={10} /> Phân tích bởi Gemini AI CS
+                  <h2 className="text-[var(--text-main)] font-black text-lg leading-none uppercase tracking-tight">Gợi ý Giải bài</h2>
+                  <p className="text-cyan-500/60 text-[10px] mt-1.5 font-bold uppercase tracking-widest flex items-center gap-1">
+                    <Sparkles size={10} /> Phân tích bởi Gemini 3 Flash
                   </p>
                 </div>
               </div>
@@ -109,22 +131,22 @@ function HintPanel({ hint, isOpen, onClose }) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="prose prose-invert prose-emerald max-w-none text-slate-300 markdown-content"
+                  className="prose prose-invert prose-cyan max-w-none text-slate-300 markdown-content"
                 >
                   <ReactMarkdown 
                     remarkPlugins={[remarkMath]} 
                     rehypePlugins={[rehypeKatex]}
                     components={{
-                      h1: ({node, ...props}) => <h1 className="text-blue-400 font-extrabold text-2xl mt-8 mb-4" {...props} />,
-                      h2: ({node, ...props}) => <h2 className="text-emerald-400 font-bold text-lg mt-6 mb-3 flex items-center gap-2" {...props} />,
-                      p: ({node, ...props}) => <p className="leading-relaxed mb-4" {...props} />,
-                      strong: ({node, ...props}) => <strong className="text-slate-100 font-bold" {...props} />,
+                      h1: ({node, ...props}) => <h1 className="text-cyan-400 font-black text-2xl mt-8 mb-4 uppercase tracking-tight" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-sky-500 font-bold text-lg mt-6 mb-3 flex items-center gap-2 uppercase tracking-wide" {...props} />,
+                      p: ({node, ...props}) => <p className="leading-relaxed mb-4 text-[var(--text-main)]" {...props} />,
+                      strong: ({node, ...props}) => <strong className="text-[var(--text-main)] font-black" {...props} />,
                       ul: ({node, ...props}) => <ul className="list-disc ml-4 space-y-2 mb-4" {...props} />,
                       ol: ({node, ...props}) => <ol className="list-decimal ml-4 space-y-2 mb-4" {...props} />,
-                      li: ({node, ...props}) => <li className="text-slate-400" {...props} />,
+                      li: ({node, ...props}) => <li className="text-[var(--text-dim)]" {...props} />,
                     }}
                   >
-                    {hint}
+                    {preprocessLatex(hint)}
                   </ReactMarkdown>
                 </motion.div>
               ) : (
@@ -137,11 +159,10 @@ function HintPanel({ hint, isOpen, onClose }) {
               )}
             </div>
 
-            {/* Footer */}
-            <div className="p-8 border-t border-slate-800 bg-slate-900/80">
-              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
-                <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-slate-500 leading-relaxed italic">
+            <div className="p-8 border-t border-white/5 bg-black/10">
+              <div className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/10 flex items-start gap-3">
+                <Info size={16} className="text-cyan-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-[var(--text-dim)] leading-relaxed italic">
                   Gợi ý này được tạo tự động nhằm hỗ trợ tư duy không gian. Hãy sử dụng nó như một tài liệu tham khảo để rèn luyện kỹ năng tự giải toán nhé!
                 </p>
               </div>
@@ -164,7 +185,19 @@ export default function App() {
   const [error, setError] = useState('');
   const [isHintOpen, setIsHintOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [activeMode, setActiveMode] = useState('GEOMETRY'); // GEOMETRY, VECTOR, GRAPH
+  const [graphExpression, setGraphExpression] = useState('sin(x)');
+  const [algebraData, setAlgebraData] = useState(null);
+  const [theme, setTheme] = useState('dark'); // dark, light
+  const [showAxes, setShowAxes] = useState(true);
+  const [uploadedImage, setUploadedImage] = useState(null);
   const controlsRef = useRef();
+
+  // Đồng bộ theme vào thuộc tính của body
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const handleGenerate = async () => {
     if (!promptInput.trim()) {
@@ -175,19 +208,46 @@ export default function App() {
     setError('');
     
     try {
-      // Sử dụng biến môi trường VITE_API_URL để trỏ tới API độc lập (Render)
       const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
-      const apiUrl = baseUrl 
-        ? `${baseUrl}/api/geometry/calculate` 
-        : 'http://localhost:8000/api/geometry/calculate';
-        
-      const response = await axios.post(apiUrl, {
-        query: promptInput
-      });
       
-      setGeometryData(response.data);
-      setHintData(response.data.hint ?? null);
-      setActiveStep(0); // Reset về bước 0 khi có lời giải mới
+      if (activeMode === 'GEOMETRY' || activeMode === 'VECTOR') {
+        const apiUrl = baseUrl 
+          ? `${baseUrl}/api/geometry/calculate` 
+          : 'http://localhost:8000/api/geometry/calculate';
+          
+        // Thêm gợi ý cho AI nếu là chế độ Vector
+        const query = activeMode === 'VECTOR' 
+          ? `${promptInput} (Hãy xử lý bài toán này dưới góc độ vector không gian, vẽ các mũi tên vector)`
+          : promptInput;
+
+        const response = await axios.post(apiUrl, { 
+          query,
+          image: uploadedImage // Gửi kèm ảnh base64 nếu có
+        });
+        
+        const data = response.data;
+        setGeometryData(data);
+        setHintData(data.hint ?? null);
+        setActiveStep(0);
+
+        // Tự động chuyển mode dựa trên type trả về từ AI
+        if (data.type === '2D') {
+          setActiveMode('GRAPH');
+        } else {
+          setActiveMode('GEOMETRY');
+        }
+      } else if (activeMode === 'GRAPH') {
+        const apiUrl = baseUrl 
+          ? `${baseUrl}/api/algebra/solve` 
+          : 'http://localhost:8000/api/algebra/solve';
+          
+        const response = await axios.post(apiUrl, { query: promptInput });
+        setAlgebraData(response.data);
+        if (response.data.function_string) {
+          setGraphExpression(response.data.function_string);
+        }
+        setHintData(null); // Hoặc bạn có thể gọi thêm Socratic Hint nếu cần
+      }
       
       if (controlsRef.current) {
         controlsRef.current.reset();
@@ -208,184 +268,234 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-hidden select-none">
+    <div className="flex h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-hidden select-none ocean-gradient">
       
-      {/* 🔮 Sidebar */}
-      <motion.div 
-        initial={{ x: -20, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        className="w-[380px] shrink-0 p-8 flex flex-col z-50 relative border-r border-white/5 bg-slate-900/40 backdrop-blur-3xl shadow-2xl"
-      >
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-transparent opacity-50" />
-        
-        <div className="mb-10 group cursor-default">
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Box size={18} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tighter bg-gradient-to-br from-white via-white to-slate-400 bg-clip-text text-transparent uppercase">
-              SpatialMind
-            </h1>
-          </div>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] ml-10">
-            Augmented Reality Geometry · <span className="text-emerald-500">v2.0 Beta</span>
-          </p>
-        </div>
-
-        <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <ChevronRight size={10} className="text-blue-500" /> Nhập đề bài
-              </label>
-              <span className="text-[9px] text-slate-600 bg-slate-800/50 px-2 py-0.5 rounded uppercase font-bold">NLP Processor</span>
-            </div>
-            <textarea
-              rows={5}
-              className="w-full px-5 py-4 bg-slate-950/50 text-slate-100 text-sm rounded-2xl border border-white/5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder:text-slate-700 resize-none shadow-inner leading-relaxed"
-              placeholder="VD: Cho hình chóp S.ABCD, đáy là hình vuông cạnh 4cm. SA vuông góc với đáy, SA = 3cm..."
-              value={promptInput}
-              onChange={(e) => setPromptInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) handleGenerate(); }}
-            />
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] text-slate-600">Phân tích bởi <span className="text-slate-500 font-bold italic">Gemini Flash</span></span>
-              <span className="text-[10px] text-slate-500/50 font-medium">Ctrl + Enter</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleGenerate}
-              disabled={loading}
-              className={`py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest text-white transition-all shadow-xl flex items-center justify-center gap-3 overflow-hidden group relative
-                ${loading 
-                  ? 'bg-blue-600/40 cursor-not-allowed border border-blue-400/20' 
-                  : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40 border border-blue-400/40 hover:border-blue-300'}`}
-            >
-              {loading ? (
-                <>
-                  <RotateCcw className="animate-spin" size={16} />
-                  Đang phân tích cấu trúc...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} className="group-hover:animate-pulse" />
-                  Tạo mô hình 3D
-                </>
-              )}
-            </motion.button>
-
-            <motion.button
-              whileHover={hintData ? { scale: 1.01 } : {}}
-              whileTap={hintData ? { scale: 0.98 } : {}}
-              onClick={() => setIsHintOpen(true)}
-              disabled={!hintData}
-              className={`py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3
-                ${hintData 
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 shadow-emerald-900/10' 
-                  : 'bg-slate-800/50 border border-slate-700/50 text-slate-600 cursor-not-allowed opacity-50'}`}
-            >
-              <Lightbulb size={16} />
-              Hướng dẫn (Hint)
-            </motion.button>
-          </div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-[11px] font-bold flex items-start gap-3"
-              >
-                <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {geometryData && !error && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <ChevronRight size={10} className="text-emerald-500" /> Các bước giải
-                </label>
-                <span className="text-[9px] text-slate-500 bg-slate-800 font-bold px-2 py-0.5 rounded">
-                  {Math.min(activeStep + 1, geometryData.steps?.length || 0)} / {geometryData.steps?.length || 0}
-                </span>
-              </div>
-              
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {geometryData.steps?.map((step, idx) => (
-                  <motion.div 
-                    key={idx}
-                    onClick={() => setActiveStep(idx + 1)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                      activeStep >= idx + 1 
-                        ? 'bg-emerald-500/10 border-emerald-500/30' 
-                        : 'bg-slate-800/20 border-white/5 hover:border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black ${
-                        activeStep >= idx + 1 ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'
-                      }`}>
-                        {idx + 1}
-                      </div>
-                      <span className={`text-[11px] font-bold ${activeStep >= idx + 1 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                        Bước {idx + 1}
-                      </span>
-                    </div>
-                    <p className={`text-[12px] leading-relaxed ${activeStep >= idx + 1 ? 'text-slate-200' : 'text-slate-500'}`}>
-                      {step.explanation}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setActiveStep(0)}
-                  className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-400"
-                >
-                  Gốc
-                </button>
-                <button 
-                  onClick={() => setActiveStep(geometryData.steps?.length || 0)}
-                  className="flex-1 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest text-emerald-400"
-                >
-                  Kết quả
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-auto pt-8 border-t border-slate-800/50 space-y-4">
-          <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Mô phỏng 3D</h3>
-          <div className="space-y-2.5">
+      {/* 🚀 Top Navigation HUD */}
+      <div className="fixed top-8 left-0 w-full flex justify-center z-[60] pointer-events-none">
+        <motion.div 
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="flex items-center gap-1 p-1.5 aqua-glass rounded-2xl pointer-events-auto shadow-2xl"
+        >
+          <div className="flex bg-black/10 rounded-xl p-1 mr-2 overflow-hidden border border-white/5">
             {[
-              ['Left Click', 'Xoay vật thể'],
-              ['Right Click', 'Dịch chuyển tâm'],
-              ['Scroll', 'Phóng to thu nhỏ'],
-            ].map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between text-[11px] text-slate-500">
-                <span className="font-bold text-slate-400">{key}</span>
-                <span className="opacity-60 italic">{value}</span>
-              </div>
+              { id: 'GEOMETRY', icon: Box, label: 'Hình học' },
+              { id: 'VECTOR', icon: Dna, label: 'Vector' },
+              { id: 'GRAPH', icon: Layers, label: 'Đồ thị' }
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setActiveMode(mode.id)}
+                className={`relative px-5 py-2 rounded-lg transition-all flex items-center gap-2 group`}
+              >
+                {activeMode === mode.id && (
+                  <motion.div 
+                    layoutId="active-tab"
+                    className="absolute inset-0 bg-cyan-500/20 border border-cyan-400/30 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <mode.icon size={14} className={activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'} />
+                <span className={`text-[10px] font-black uppercase tracking-widest ${activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                  {mode.label}
+                </span>
+              </button>
             ))}
           </div>
-          <button 
-            onClick={handleResetCamera}
-            className="w-full mt-4 py-3 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-2.5 rounded-xl hover:bg-white/5 text-slate-500 hover:text-cyan-400 transition-all flex items-center justify-center"
+            title="Chuyển chế độ Sáng/Tối"
           >
-            <RotateCcw size={12} /> Camera Reset
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+ 
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+ 
+          <button
+            onClick={() => setShowAxes(!showAxes)}
+            className={`p-2.5 rounded-xl transition-all flex items-center justify-center ${showAxes ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-500 hover:text-cyan-400 hover:bg-white/5'}`}
+            title="Bật/Tắt Trục Tọa Độ"
+          >
+            <LayoutDashboard size={18} />
+          </button>
+        </motion.div>
+      </div>
+
+      {/* 🔮 Floating Sidebar */}
+      <motion.div 
+        initial={false}
+        animate={{ 
+          width: isSidebarCollapsed ? 80 : 380,
+          x: 0,
+          opacity: 1
+        }}
+        className="fixed left-8 top-1/2 -translate-y-1/2 h-[85vh] z-50 aqua-glass rounded-[32px] overflow-hidden flex flex-col shadow-2xl border-white/5 group/sidebar transition-all duration-500 ease-in-out"
+      >
+        <button 
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all z-[70]"
+        >
+          {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
+
+        <div className="p-8 flex flex-col h-full overflow-hidden">
+          <div className={`mb-10 flex items-center gap-4 transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 scale-90 invisible' : 'opacity-100 scale-100 visible'}`}>
+            <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <Box size={22} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tighter text-[var(--text-main)] uppercase leading-none">
+                SpatialMind
+              </h1>
+              <p className="text-[10px] text-cyan-500/80 font-bold uppercase tracking-widest mt-1">
+                v2.1 {theme === 'dark' ? 'HUD' : 'Light'} Edition
+              </p>
+            </div>
+          </div>
+
+          <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 translate-x-10 invisible' : 'opacity-100 translate-x-0 visible'}`}>
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <LayoutDashboard size={10} className="text-cyan-500" /> Nhập nhiệm vụ
+                </label>
+                <textarea
+                  rows={5}
+                  className="w-full px-5 py-4 bg-black/10 text-[var(--text-main)] text-sm rounded-2xl border border-[var(--glass-border)] focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-[var(--text-dim)] resize-none shadow-inner leading-relaxed"
+                  placeholder="Nhập đề bài hình học hoặc đồ thị tại đây..."
+                  value={promptInput}
+                  onChange={(e) => setPromptInput(e.target.value)}
+                />
+                <ImageUpload image={uploadedImage} setImage={setUploadedImage} />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className={`py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest text-white transition-all shadow-xl flex items-center justify-center gap-3 relative overflow-hidden
+                    ${loading 
+                      ? 'bg-cyan-600/40 cursor-not-allowed opacity-50' 
+                      : 'bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/40 border border-cyan-400/40'}`}
+                >
+                  {loading ? <RotateCcw className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                  {loading ? 'Đang phân tích...' : 'Khởi tạo không gian'}
+                </motion.button>
+
+                <motion.button
+                  whileHover={hintData ? { scale: 1.02, backgroundColor: 'rgba(34, 211, 238, 0.15)' } : {}}
+                  whileTap={hintData ? { scale: 0.98 } : {}}
+                  onClick={() => setIsHintOpen(true)}
+                  disabled={!hintData}
+                  className={`py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3
+                    ${hintData 
+                      ? 'bg-cyan-500/5 border border-cyan-500/20 text-cyan-400' 
+                      : 'bg-slate-800/10 border border-white/5 text-slate-700 cursor-not-allowed'}`}
+                >
+                  <Lightbulb size={16} />
+                  Gợi ý Socratic
+                </motion.button>
+              </div>
+
+              {/* Steps Area */}
+              <AnimatePresence>
+                {activeMode === 'GEOMETRY' && geometryData && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4 border-t border-white/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tiến trình giải</span>
+                      <span className="text-[10px] text-cyan-500 font-bold bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                        {activeStep}/{geometryData.steps?.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {geometryData.steps?.map((step, idx) => (
+                        <div 
+                          key={idx}
+                          onClick={() => setActiveStep(idx + 1)}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                            activeStep >= idx + 1 ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-[var(--glass-bg)] border-transparent opacity-40 grayscale hover:opacity-100'
+                          }`}
+                        >
+                          <p className="text-[11px] font-black text-cyan-500 mb-2 uppercase tracking-tighter">Bước {idx + 1}</p>
+                          <div className="text-[12px] text-[var(--text-main)] leading-relaxed opacity-90">
+                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                {preprocessLatex(step.explanation)}
+                             </ReactMarkdown>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className={`absolute left-0 top-32 w-full flex flex-col items-center gap-8 transition-all duration-300 ${isSidebarCollapsed ? 'opacity-100 visible translate-x-0' : 'opacity-0 invisible -translate-x-10'}`}>
+            <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+               {activeMode === 'GEOMETRY' ? <Box size={22} className="text-white" /> : 
+                activeMode === 'VECTOR' ? <Dna size={22} className="text-white" /> : 
+                <Layers size={22} className="text-white" />}
+            </div>
+            <div className="flex flex-col gap-6 items-center">
+              <button onClick={handleGenerate} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><Sparkles size={20} /></button>
+              <button onClick={() => setIsHintOpen(true)} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><Lightbulb size={20} /></button>
+            </div>
+          </div>
         </div>
       </motion.div>
+
+      {/* 🧊 Pop-up Results Box */}
+      {activeMode === 'GRAPH' && algebraData && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-6"
+        >
+          <div className="aqua-glass rounded-3xl p-8 shadow-2xl overflow-hidden relative border border-cyan-400/20">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h4 className="text-xs font-black text-cyan-500 uppercase tracking-widest mb-1">Kết quả Giải tích</h4>
+                <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-tighter">Phân tích chuyên sâu từ SymPy & LLM</p>
+              </div>
+              <button 
+                onClick={() => setAlgebraData(null)}
+                className="p-2 rounded-full bg-black/10 text-[var(--text-dim)] hover:text-cyan-400"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div className={`p-6 rounded-2xl border border-white/5 overflow-x-auto ${theme === 'dark' ? 'bg-black/40' : 'bg-white/40'}`}>
+                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                   {`$$${algebraData.result_latex}$$`}
+                 </ReactMarkdown>
+              </div>
+
+              <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar no-scrollbar text-[var(--text-main)]">
+                {algebraData.steps?.map((step, idx) => (
+                  <div key={idx} className="shrink-0 w-64 p-4 bg-white/5 rounded-xl border border-white/5">
+                    <p className="text-[9px] font-black text-cyan-500 uppercase mb-2">Pha {idx + 1}</p>
+                    <div className="text-[11px] text-slate-400">
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                        {preprocessLatex(step)}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* 🧊 3D Canvas Box */}
       <div className="flex-1 relative overflow-hidden bg-[#020617]">
@@ -400,57 +510,78 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/10 blur-[120px] rounded-full translate-y-1/2 -translate-x-1/2" />
         </div>
 
-        {/* 🎨 Canvas with internal Suspense */}
-        <Canvas dpr={[1, 2]} shadows gl={{ antialias: true }}>
-          <Suspense fallback={<SceneLoader />}>
-            <PerspectiveCamera makeDefault fov={45} position={[8, 6, 12]} />
-            <color attach="background" args={['#020617']} />
-            
-            <ambientLight intensity={1.0} />
-            <spotLight position={[10, 20, 10]} intensity={1.5} angle={0.3} penumbra={1} castShadow />
-            <pointLight position={[-10, 10, -10]} intensity={1.5} color="#3b82f6" />
-            <pointLight position={[5, -5, 5]} intensity={1.0} color="#10b981" />
-            
-            <Stars radius={150} depth={50} count={6000} factor={4} saturation={0.5} fade speed={1} />
-
-            <group position={[0, -1, 0]}>
-              {geometryData ? (
-                <GeometryViewer data={geometryData} currentStep={activeStep} />
-              ) : (
-                <Float speed={2} rotationIntensity={1} floatIntensity={1}>
-                  <mesh rotation={[0.5, 0.5, 0]}>
-                    <boxGeometry args={[3, 3, 3]} />
-                    <meshStandardMaterial 
-                      color="#1e293b" 
-                      wireframe 
-                      transparent 
-                      opacity={0.1}
-                      emissive="#1e3a8a" 
-                    />
-                  </mesh>
-                </Float>
-              )}
+        {/* 🎨 Views based on activeMode */}
+        {activeMode === 'GRAPH' ? (
+          <div className="absolute inset-0 z-10 p-12 flex items-center justify-center">
+            {geometryData?.type === '2D' ? (
+              <Graph2DViewer functions={geometryData.functions} />
+            ) : (
+              <FunctionPlotter expression={graphExpression} />
+            )}
+          </div>
+        ) : (
+          <Canvas dpr={[1, 2]} shadows gl={{ antialias: true }}>
+            <Suspense fallback={<SceneLoader />}>
+              <PerspectiveCamera makeDefault fov={45} position={[8, 6, 12]} />
+              <color attach="background" args={[theme === 'dark' ? '#020617' : '#e0f2fe']} />
               
-              <ContactShadows resolution={1024} scale={20} blur={2} opacity={0.2} far={10} color="#000000" />
-            </group>
+              <ambientLight intensity={theme === 'dark' ? 0.8 : 1.0} />
+              <spotLight position={[10, 20, 10]} intensity={2} angle={0.3} penumbra={1} castShadow />
+              <pointLight position={[-10, 10, -10]} intensity={theme === 'dark' ? 2 : 1.5} color="#22d3ee" />
+              <pointLight position={[5, -5, 5]} intensity={1} color="#0ea5e9" />
+              
+              {theme === 'dark' ? (
+                <>
+                  <Stars radius={150} depth={50} count={3000} factor={4} saturation={1} fade speed={1.5} />
+                  <fog attach="fog" args={['#020617', 5, 25]} />
+                </>
+              ) : (
+                <>
+                  <Sky sunPosition={[100, 20, 100]} />
+                  <fog attach="fog" args={['#e0f2fe', 10, 40]} />
+                </>
+              )}
 
-            <OrbitControls 
-              ref={controlsRef}
-              makeDefault 
-              enableDamping 
-              dampingFactor={0.06}
-              minDistance={3}
-              maxDistance={30}
-              autoRotate={!geometryData}
-              autoRotateSpeed={0.5}
-            />
-            
-            <gridHelper args={[20, 20, '#1e293b', '#0f172a']} position={[0, -2, 0]} opacity={0.3} transparent />
-            <axesHelper args={[4]} />
-          </Suspense>
-        </Canvas>
+              <group position={[0, -1, 0]}>
+                {(activeMode === 'GEOMETRY' || activeMode === 'VECTOR') && geometryData && (
+                  <GeometryViewer data={geometryData} currentStep={activeStep} theme={theme} showAxes={showAxes} />
+                )}
+                
+                {activeMode === 'GEOMETRY' && !geometryData && (
+                  <Float speed={2} rotationIntensity={1} floatIntensity={1}>
+                    <mesh rotation={[0.5, 0.5, 0]}>
+                      <boxGeometry args={[3, 3, 3]} />
+                      <meshStandardMaterial 
+                        color="#1e293b" 
+                        wireframe 
+                        transparent 
+                        opacity={0.1}
+                        emissive="#1e3a8a" 
+                      />
+                    </mesh>
+                  </Float>
+                )}
+                
+                <ContactShadows resolution={1024} scale={20} blur={2} opacity={0.2} far={10} color="#000000" />
+              </group>
 
-        {!geometryData && (
+              <OrbitControls 
+                ref={controlsRef}
+                makeDefault 
+                enableDamping 
+                dampingFactor={0.06}
+                minDistance={3}
+                maxDistance={30}
+                autoRotate={!geometryData && activeMode === 'GEOMETRY'}
+                autoRotateSpeed={0.5}
+              />
+              
+              {/* Trục & Lưới phụ đã được ẩn theo yêu cầu */}
+            </Suspense>
+          </Canvas>
+        )}
+
+        {activeMode === 'GEOMETRY' && !geometryData && (
           <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
             <motion.div 
               animate={{ y: [0, -4, 0] }}

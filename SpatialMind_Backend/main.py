@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import base64
 import sympy as sp
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,21 +13,26 @@ from google.genai import types
 import time
 
 # Load biến môi trường
-load_dotenv()
+# Chỉ định rõ đường dẫn .env để tránh lỗi không tìm thấy khi chạy bat
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # Khởi tạo Gemini client theo SDK mới nhất google-genai
 gemini_client = None
 if GEMINI_API_KEY and GEMINI_API_KEY != "your_api_key_here":
     try:
+        # Sử dụng api_key trực tiếp hoặc qua env
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        logging.info("Gemini Client khởi tạo thành công.")
     except Exception as e:
         logging.warning(f"Không thể khởi tạo Gemini client: {e}")
 
 app = FastAPI(
     title="SpatialMind API with Gemini AI",
     description="API cho ứng dụng SpatialMind, kết hợp Gemini và SymPy",
-    version="2.1.0"
+    version="v.1.0"
 )
 
 app.add_middleware(
@@ -39,10 +45,11 @@ app.add_middleware(
 
 class GeometryRequest(BaseModel):
     query: str = Field(..., description="Đề bài ngôn ngữ tự nhiên từ học sinh")
+    image: Optional[str] = Field(None, description="Dữ liệu ảnh base64 (nếu có)")
 
 class DrawElement(BaseModel):
     model_config = {"populate_by_name": True}
-    type: str
+    type: str  # "line", "point", "vector", "right_angle", "function"
     from_point: Optional[str] = Field(None, alias="from")
     to_point: Optional[str] = Field(None, alias="to")
     name: Optional[str] = None
@@ -54,74 +61,262 @@ class Step(BaseModel):
     explanation: str
     draw_elements: List[DrawElement]
 
+# GeometryResponse is not used directly as return type in calculate_geometry but kept for reference
 class GeometryResponse(BaseModel):
+    type: str
     vertices: Dict[str, List[float]]
     edges: List[List[str]]
+    vectors: List[Dict[str, Any]]
+    functions: List[Dict[str, Any]]
     steps: List[Step]
     hint: Optional[str] = None
 
-# --- Prompt & logic từ gemini_spatial_parser.py ---
-SYSTEM_PROMPT = """
-Bạn là một chuyên gia Toán học Hình học Không gian và AI Backend Developer.
-Nhiệm vụ của bạn là phân tích đề bài toán hình học không gian (Tiếng Việt) và chuyển đổi nó thành một cấu trúc JSON nghiêm ngặt để hiển thị 3D.
+class SocraticRequest(BaseModel):
+    problem_statement: str
+    student_wrong_step: str
+    theory_markdown: str
 
-QUY TẮC TÍNH TOÁN TỌA ĐỘ (LUÔN TUÂN THỦ):
-1. Hệ trục Oxyz: 
-   - Đáy thường nằm trên mặt phẳng (Oxy), tức z=0.
-   - Gốc tọa độ O(0,0,0) nên đặt tại một đỉnh của đáy (thường là A) hoặc tâm đáy.
-2. Chiều dài các cạnh (Tỷ lệ tương đối):
-   - Nếu đề bài cho "cạnh a", hãy coi a = 2.0.
-   - Chiều cao hình chóp h = 3.0.
-3. Các hình khối cơ bản:
-   - Hình vuông ABCD đáy: A(0,0,0), B(2,0,0), C(2,2,0), D(0,2,0).
-   - Hình chóp S.ABCD có SA ⊥ đáy: S(0,0,3).
-4. Logic vẽ:
-   - Một đường thẳng được coi là 'dashed' (nét đứt) nếu nó nằm bên trong hoặc bị các mặt khác che khuất.
+class SocraticResponse(BaseModel):
+    analysis_internal: str
+    socratic_question: str
+    theory_applied: str
+
+class AlgebraRequest(BaseModel):
+    query: str
+
+class AlgebraResponse(BaseModel):
+    result_latex: str
+    steps: List[str]
+    function_string: Optional[str] = None # Dùng để backend gửi chuỗi hàm số cho frontend vẽ đồ thị
+
+# --- Prompt & logic từ gemini_spatial_parser.py ---
+# --- Prompt & logic upgrade ---
+SYSTEM_PROMPT = """
+Bạn là một chuyên gia Toán học và Visualizer.
+Nhiệm vụ: Phân tích đề bài (Text + Image) và chuyển đổi thành cấu trúc JSON để hiển thị Toán học 2D/3D.
+
+QUY TẮC HIỂN THỊ:
+1. Nếu là Hình học không gian: type="3D", dùng vertices (object) và edges.
+2. Nếu là Đồ thị hàm số: type="2D", dùng functions (mảng các biểu thức có tiền tố Math. ví dụ Math.sin(x)).
+3. Nếu là Vector: Thêm vào mảng vectors.
+4. Chế độ tọa độ 3D (Three.js):
+   - Đỉnh thường đặt tại z=0 cho đáy. a=2.0, h=3.0 mặc định.
+   - Nét đứt (style="dashed") cho các cạnh khuất.
+5. Vẽ biểu tượng vuông góc: Dùng type="right_angle".
+
+BẮT BUỘC TRẢ VỀ JSON KHÔNG CÓ TEXT DƯ QUY ĐỊNH SAU:
 """
 
-@app.post("/api/geometry/calculate", response_model=GeometryResponse)
+MATH_JSON_SCHEMA = {
+    "type": "string", # "3D" hoặc "2D"
+    "vertices": {
+        "type": "object",
+        "additionalProperties": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 }
+    },
+    "edges": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+    "vectors": {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "start": {"type": "array", "items": {"type": "number"}},
+                "direction": {"type": "array", "items": {"type": "number"}},
+                "length": {"type": "number"}
+            }
+        }
+    },
+    "functions": {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "expression": {"type": "string"},
+                "color": {"type": "string"}
+            }
+        }
+    },
+    "steps": {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "step": {"type": "integer"},
+                "hint": {"type": "string"}
+            }
+        }
+    }
+}
+
+
+@app.post("/api/geometry/calculate")
 def calculate_geometry(request: GeometryRequest):
     if not gemini_client:
         raise HTTPException(status_code=500, detail="Gemini API chưa được cấu hình.")
 
     try:
-        # Ví dụ JSON để AI bắt chước
-        example_json = {
-            "vertices": [{"name": "A", "x": 0.0, "y": 0.0, "z": 0.0}, {"name": "S", "x": 0.0, "y": 0.0, "z": 3.0}],
-            "edges": [["A", "B"], ["S", "A"]],
-            "steps": [{"step_number": 1, "explanation": "Vẽ đáy...", "draw_elements": [{"type": "line", "from": "A", "to": "B", "style": "dashed"}]}]
-        }
+        contents = [SYSTEM_PROMPT, f"Đề bài: {request.query}"]
+        
+        # Nếu có ảnh, đính kèm vào nội dung gửi cho Gemini
+        if request.image:
+            # Xử lý base64 string
+            image_data = request.image
+            if "data:image" in image_data:
+                image_data = image_data.split(",")[1]
+            contents.append(types.Part.from_bytes(data=base64.b64decode(image_data), mime_type="image/jpeg"))
 
-        prompt = (
-            f"{SYSTEM_PROMPT}\n\nĐề bài: {request.query}\n\n"
-            f"Phản hồi JSON đúng schema như ví dụ: {json.dumps(example_json)}\n"
-            f"HÃY ĐẢM BẢO `draw_elements` là danh sách các object."
+        response = gemini_client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=MATH_JSON_SCHEMA,
+                temperature=0.1
+            )
         )
 
-        # Thử lại tối đa 3 lần nếu gặp lỗi server (503, 429)
-        max_retries = 3
-        last_error = None
+        data = json.loads(response.text.strip())
         
-        for attempt in range(max_retries):
+        # Chuyển đổi tọa độ Oxyz của AI sang coordinate system của Three.js (Y là chiều cao)
+        # Transformation: (x, y, z) AI -> (x, z, -y) Three.js
+        raw_vertices = data.get("vertices", {})
+        formatted_vertices = {}
+        if isinstance(raw_vertices, dict):
+            for name, coords in raw_vertices.items():
+                if len(coords) == 3:
+                    formatted_vertices[name] = [coords[0], coords[2], -coords[1]]
+
+        # Chuyển đổi tọa độ cho Vectors (Sync with vertices)
+        raw_vectors = data.get("vectors", [])
+        formatted_vectors = []
+        for vec in raw_vectors:
+            start = vec.get("start", [0, 0, 0])
+            direction = vec.get("direction", [1, 0, 0])
+            if len(start) == 3 and len(direction) == 3:
+                formatted_vectors.append({
+                    "id": vec.get("id"),
+                    "start": [start[0], start[2], -start[1]],
+                    "direction": [direction[0], direction[2], -direction[1]],
+                    "length": vec.get("length", 2)
+                })
+
+        return {
+            "type": data.get("type", "3D"),
+            "vertices": formatted_vertices,
+            "edges": data.get("edges", []),
+            "vectors": formatted_vectors,
+            "functions": data.get("functions", []),
+            "steps": data.get("steps", []),
+            "hint": data.get("steps", [{}])[0].get("hint", "AI đã phân tích xong đề bài.")
+        }
+        
+    except Exception as e:
+        logging.error(f"Lỗi: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Lỗi AI: {str(e)}")
+
+# --- Algebra & SymPy Solver Endpoint ---
+ALGEBRA_SOLVER_PROMPT = """
+Bạn là một chuyên gia Toán học Đại số và Giải tích.
+Nhiệm vụ của bạn là phân tích đề bài toán đại số (Tiếng Việt) và chuyển đổi nó thành các bước giải bằng SymPy.
+
+Yêu cầu:
+1. Xác định hàm số chính (nếu có) để frontend có thể vẽ đồ thị.
+2. Giải toán từng bước.
+3. Trả về kết quả cuối cùng dưới dạng LaTeX.
+
+Đầu ra bắt buộc là JSON:
+{
+  "result_latex": "Kết quả cuối cùng dạng LaTeX (vd: \\frac{2x}{3})",
+  "steps": ["Bước 1: ...", "Bước 2: ..."],
+  "function_string": "Chuỗi hàm số chuẩn Python để vẽ đồ thị (vd: sin(x) + x**2). Nếu không có hàm số thì để null."
+}
+"""
+
+@app.post("/api/algebra/solve", response_model=AlgebraResponse)
+def solve_algebra(request: AlgebraRequest):
+    if not gemini_client:
+        raise HTTPException(status_code=500, detail="Gemini API chưa được cấu hình.")
+    
+    try:
+        response = gemini_client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=f"{ALGEBRA_SOLVER_PROMPT}\n\nĐề bài: {request.query}",
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1
+            )
+        )
+        
+        data = json.loads(response.text.strip())
+        
+        # Ở đây chúng ta có thể thực hiện tính toán SymPy thực tế để kiểm chứng 
+        # Ví dụ: Nếu có function_string, ta có thể dùng SymPy để tính đạo hàm thực tế
+        if data.get("function_string"):
             try:
-                response = gemini_client.models.generate_content(
-                    model="gemini-2.0-flash", # Bản 2.0-flash chính thức nhẹ và xử lý tốc độ cực nhanh
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        temperature=0.1
-                    )
-                )
-                break # Thành công
-            except Exception as e:
-                last_error = e
-                if "503" in str(e) or "429" in str(e):
-                    logging.warning(f"Lỗi Gemini (Lần {attempt+1}/{max_retries}): {e}. Đang thử lại...")
-                    time.sleep(2 * (attempt + 1)) # Backoff nhẹ
-                    continue
-                raise e # Lỗi khác thì báo luôn
-        else:
-            raise last_error
+                x = sp.Symbol('x')
+                # Lưu ý: eval() trong môi trường thực tế cần được kiểm soát chặt chẽ
+                # Ở đây ta dùng sp.sympify để an toàn hơn
+                expr = sp.sympify(data["function_string"])
+                # Ví dụ: Luôn tính thêm đạo hàm để làm phong phú kết quả
+                derivative = sp.diff(expr, x)
+                data["steps"].append(f"Đạo hàm bổ sung bởi SymPy: ${sp.latex(derivative)}$")
+            except Exception as se:
+                logging.warning(f"SymPy Verification Error: {se}")
+
+        return AlgebraResponse(
+            result_latex=data.get("result_latex", ""),
+            steps=data.get("steps", []),
+            function_string=data.get("function_string")
+        )
+    except Exception as e:
+        logging.error(f"Lỗi Algebra Solver: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Lỗi giải toán: {str(e)}")
+
+# --- Socratic Tutor Endpoint ---
+SOCRATIC_TUTOR_PROMPT = """
+Bạn là một Chuyên gia Sư phạm Toán học Socratic (Socratic Math Tutor).
+Nhiệm vụ của bạn là hướng dẫn học sinh nhận ra lỗi sai của chính mình thông qua các gợi ý và câu hỏi phản tư. 
+
+NGUYÊN TẮC TỐI THƯỢNG: TUYỆT ĐỐI KHÔNG giải bài toán cho học sinh, KHÔNG ĐƯA RA đáp án cuối cùng.
+
+Đầu vào sẽ bao gồm:
+1. Đê bài: {problem}
+2. Bước giải sai của học sinh: {wrong_step}
+3. Trích đoạn lý thuyết liên quan (Markdown): {theory}
+
+Yêu cầu:
+- Sử dụng trích đoạn lý thuyết được cung cấp làm nền tảng kiến thức.
+- Kết hợp phương pháp Socratic: Đặt ra MỘT câu hỏi gợi mở, hướng học sinh đối chiếu bài làm của mình với đoạn lý thuyết, từ đó tự nhận ra họ đã áp dụng sai quy tắc/công thức nào.
+- Giọng văn: Khích lệ, thân thiện, mang tính gợi mở. Sử dụng LaTeX cho công thức toán.
+
+Đầu ra bắt buộc là JSON theo định dạng sau:
+{
+  "analysis_internal": "Phân tích nội bộ của bạn xem học sinh sai ở đâu",
+  "socratic_question": "Câu hỏi gợi mở Socratic viết bằng Markdown kết hợp LaTeX, là câu trực tiếp hỏi học sinh.",
+  "theory_applied": "Tóm tắt tên lý thuyết đã dùng để gợi ý"
+}
+"""
+
+@app.post("/api/socratic-hint", response_model=SocraticResponse)
+def get_socratic_hint(request: SocraticRequest):
+    if not gemini_client:
+        raise HTTPException(status_code=500, detail="Gemini API chưa được cấu hình.")
+    
+    try:
+        prompt = SOCRATIC_TUTOR_PROMPT.format(
+            problem=request.problem_statement,
+            wrong_step=request.student_wrong_step,
+            theory=request.theory_markdown
+        )
+
+        response = gemini_client.models.generate_content(
+            model="gemini-3-flash-preview", 
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.3
+            )
+        )
 
         raw_text = response.text.strip()
         if "```json" in raw_text:
@@ -129,21 +324,15 @@ def calculate_geometry(request: GeometryRequest):
         
         data = json.loads(raw_text)
         
-        # Transform vertices từ list sang dict cho frontend
-        # Đổi trục tọa độ sang hệ Three.js: Trục Y thành chiều cao, mặt XZ làm đáy
-        vertices_list = data.get("vertices", [])
-        formatted_vertices = {v["name"]: [v["x"], v["z"], -v["y"]] for v in vertices_list}
-        
-        return GeometryResponse(
-            vertices=formatted_vertices,
-            edges=data.get("edges", []),
-            steps=data.get("steps", []),
-            hint=data.get("hint", "Xem các bước giải chi tiết phía dưới.")
+        return SocraticResponse(
+            analysis_internal=data.get("analysis_internal", ""),
+            socratic_question=data.get("socratic_question", ""),
+            theory_applied=data.get("theory_applied", "")
         )
-        
     except Exception as e:
-        logging.error(f"Lỗi: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Không thể xử lý đề bài: {str(e)}")
+        logging.error(f"Lỗi Socratic Hint: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Lỗi xử lý gợi ý: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn
