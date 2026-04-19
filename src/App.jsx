@@ -1,7 +1,7 @@
 import React, { useState, useRef, Suspense, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Line, Sphere, Stars, Float, PerspectiveCamera, ContactShadows, Sky } from '@react-three/drei';
+import { OrbitControls, Line, Sphere, Stars, Float, PerspectiveCamera, ContactShadows, Sky, Html } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -53,6 +53,54 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
 // ... (các thành phần khác)
+
+// =====================
+// Helpers: Persistence
+// =====================
+const loadXP = () => {
+  const saved = localStorage.getItem('spatialmind_xp');
+  return saved ? parseInt(saved, 10) : 0;
+};
+
+const loadStreak = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem('daily_progress') || '{}');
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    
+    if (stored.date === today || stored.last_date === yesterday) {
+      return stored.streak || 0;
+    }
+    return 0;
+  } catch {
+    return 0;
+  }
+};
+
+
+// =====================
+// Component: Scene Loader (3D Fallback)
+// =====================
+function SceneLoader() {
+  return (
+    <Html center>
+      <div className="flex flex-col items-center gap-4 bg-black/40 backdrop-blur-xl p-8 rounded-[32px] border border-white/10 shadow-2xl min-w-[200px]">
+        <div className="relative">
+          <Loader2 className="animate-spin text-cyan-400" size={40} />
+          <div className="absolute inset-0 blur-lg bg-cyan-400/20 animate-pulse" />
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-cyan-400 font-black text-[10px] uppercase tracking-[0.3em] animate-pulse">
+            Loading Space
+          </p>
+          <p className="text-slate-500 text-[8px] font-bold uppercase tracking-widest">
+            Khởi tạo không gian 3D
+          </p>
+        </div>
+      </div>
+    </Html>
+  );
+}
 
 // =====================
 // Component: Main App
