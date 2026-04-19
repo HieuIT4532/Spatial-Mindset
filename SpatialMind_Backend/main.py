@@ -163,7 +163,7 @@ QUY TẮC: (x, y, z) 3D, nét đứt cho cạnh khuất, gán XP thưởng."""
             contents.append(types.Part.from_bytes(data=base64.b64decode(image_data), mime_type="image/jpeg"))
 
         response = gemini_client.models.generate_content(
-            model="gemini-1.5-flash", 
+            model="gemini-3-flash-preview", 
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -239,7 +239,7 @@ def solve_algebra(request: AlgebraRequest):
     
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-3-flash-preview",
             contents=f"{ALGEBRA_SOLVER_PROMPT}\n\nĐề bài: {request.query}",
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
