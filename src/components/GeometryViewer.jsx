@@ -106,7 +106,7 @@ function ClickableVertex({ name, position, theme, onClick, isHighlighted }) {
       <Sphere
         ref={meshRef}
         args={[0.08, 16, 16]}
-        onClick={(e) => { e.stopPropagation(); onClick(name, position, 'vertex'); }}
+        onClick={(e) => { e.stopPropagation(); onClick(name, position, 'vertex', e); }}
         onPointerOver={() => document.body.style.cursor = 'pointer'}
         onPointerOut={() => document.body.style.cursor = 'auto'}
       >
@@ -169,7 +169,7 @@ function ClickableEdge({ from, to, color, lineWidth, dashed, onClick, isHighligh
       {/* Invisible wider tube for click detection */}
       <mesh
         position={midPoint}
-        onClick={(e) => { e.stopPropagation(); onClick(edgeKey, from, to, 'edge'); }}
+        onClick={(e) => { e.stopPropagation(); onClick(edgeKey, from, to, 'edge', e); }}
         onPointerOver={() => document.body.style.cursor = 'pointer'}
         onPointerOut={() => document.body.style.cursor = 'auto'}
       >
@@ -238,9 +238,11 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
 
   if (!data || !data.vertices) return null;
 
-  const handleVertexClick = useCallback((name, position, type) => {
-    const screenX = window.innerWidth / 2;
-    const screenY = window.innerHeight / 2;
+  const handleVertexClick = useCallback((name, position, type, event) => {
+    // Get mouse coordinates from the three.js event
+    const screenX = event.clientX;
+    const screenY = event.clientY;
+    
     setHighlighted({ key: name, type });
     setTooltip({
       name,
@@ -251,11 +253,13 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
     });
   }, []);
 
-  const handleEdgeClick = useCallback((key, from, to, type) => {
+  const handleEdgeClick = useCallback((key, from, to, type, event) => {
     const dx = to[0]-from[0], dy = to[1]-from[1], dz = to[2]-from[2];
     const length = Math.sqrt(dx*dx + dy*dy + dz*dz);
-    const screenX = window.innerWidth / 2;
-    const screenY = window.innerHeight / 2;
+    
+    const screenX = event.clientX;
+    const screenY = event.clientY;
+
     setHighlighted({ key, type });
     setTooltip({
       name: `Cạnh ${key}`,
@@ -406,14 +410,14 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
         <meshBasicMaterial />
       </mesh>
 
-      {/* Tooltip overlay via Html */}
-      <Html fullscreen>
-        <AnimatePresence>
-          {tooltip && (
+      {/* Tooltip overlay via Html - Only render when active to avoid blocking DOM */}
+      {tooltip && (
+        <Html fullscreen style={{ pointerEvents: 'none' }}>
+          <AnimatePresence>
             <InfoTooltip info={tooltip} onClose={handleClose} />
-          )}
-        </AnimatePresence>
-      </Html>
+          </AnimatePresence>
+        </Html>
+      )}
     </>
   );
 };
