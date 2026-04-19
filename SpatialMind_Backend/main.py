@@ -125,43 +125,64 @@ BẮT BUỘC TRẢ VỀ JSON KHÔNG CÓ TEXT DƯ QUY ĐỊNH SAU:
 """
 
 MATH_JSON_SCHEMA = {
-    "type": "string", # "3D" hoặc "2D"
-    "vertices": {
-        "type": "object",
-        "additionalProperties": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 }
-    },
-    "edges": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
-    "vectors": {
-        "type": "array",
-        "items": {
+    "type": "object",
+    "properties": {
+        "type": { "type": "string" },
+        "vertices": {
             "type": "object",
-            "properties": {
-                "id": {"type": "string"},
-                "start": {"type": "array", "items": {"type": "number"}},
-                "direction": {"type": "array", "items": {"type": "number"}},
-                "length": {"type": "number"}
+            "additionalProperties": { "type": "array", "items": { "type": "number" } }
+        },
+        "edges": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+        "vectors": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "start": {"type": "array", "items": {"type": "number"}},
+                    "direction": {"type": "array", "items": {"type": "number"}},
+                    "length": {"type": "number"}
+                }
             }
-        }
-    },
-    "functions": {
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "expression": {"type": "string"},
-                "color": {"type": "string"}
+        },
+        "functions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string"},
+                    "color": {"type": "string"}
+                }
             }
-        }
-    },
-    "steps": {
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "step": {"type": "integer"},
-                "hint": {"type": "string"}
+        },
+        "steps": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "step_number": {"type": "integer"},
+                    "explanation": {"type": "string"},
+                    "hint": {"type": "string"},
+                    "draw_elements": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string"},
+                                "from": {"type": "string"},
+                                "to": {"type": "string"},
+                                "name": {"type": "string"},
+                                "color": {"type": "string"},
+                                "style": {"type": "string"}
+                            }
+                        }
+                    }
+                }
             }
-        }
+        },
+        "hint": {"type": "string"},
+        "xp_reward": {"type": "integer"},
+        "difficulty": {"type": "string"}
     }
 }
 
