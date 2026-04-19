@@ -1,4 +1,4 @@
-import React, { useState, useRef, Suspense, useEffect } from 'react';
+import React, { useState, useRef, Suspense, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Line, Sphere, Stars, Float, PerspectiveCamera, ContactShadows, Sky } from '@react-three/drei';
@@ -23,7 +23,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sun,
-  Moon
+  Moon,
+  Trophy,
+  Flame,
+  MessageSquare,
+  Zap,
+  Sliders,
+  Share2,
 } from 'lucide-react';
 
 // Components
@@ -32,6 +38,13 @@ import FunctionPlotter from './components/Math/FunctionPlotter';
 import Graph2DViewer from './components/Math/Graph2DViewer';
 import SpatialVector from './components/Math/SpatialVector';
 import ImageUpload from './components/ImageUpload';
+import GameHUD from './components/GameHUD';
+import DailyChallenge from './components/DailyChallenge';
+import SocraticChat from './components/SocraticChat';
+import ParticleEffect from './components/ParticleEffect';
+import ExplorerMode from './components/ExplorerMode';
+import SharePanel from './components/SharePanel';
+import ProfileDashboard from './components/ProfileDashboard';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -49,8 +62,6 @@ function SceneLoader() {
   );
 }
 
-// (GeometryModel has been replaced by GeometryViewer component)
-
 // =====================
 // Utility: Preprocess LaTeX from AI
 // =====================
@@ -65,113 +76,21 @@ const preprocessLatex = (text) => {
     .replace(/ \\\]/g, "$$")
     .replace(/\\\[/g, "$$")
     .replace(/\\\]/g, "$$")
-    .replace(/\\\\/g, "\\"); // Fix double escaping common in JSON
+    .replace(/\\\\/g, "\\");
 };
 
 // =====================
-// Component: Hint Panel (Slide Over)
+// XP persistence helpers
 // =====================
-function HintPanel({ hint, isOpen, onClose }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    if (!hint) return;
-    navigator.clipboard.writeText(hint);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-[30%] bg-black/40 backdrop-blur-3xl border-l border-white/5 shadow-2xl z-[101] flex flex-col aqua-glass"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900/50">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                  <Lightbulb size={20} className="text-emerald-400" />
-                </div>
-                <div>
-                  <h2 className="text-[var(--text-main)] font-black text-lg leading-none uppercase tracking-tight">Gợi ý Giải bài</h2>
-                  <p className="text-cyan-500/60 text-[10px] mt-1.5 font-bold uppercase tracking-widest flex items-center gap-1">
-                    <Sparkles size={10} /> Phân tích bởi Gemini 3 Flash
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {hint && (
-                  <button 
-                    onClick={handleCopy}
-                    className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
-                    title="Sao chép"
-                  >
-                    {copied ? <CheckCircle2 size={18} className="text-emerald-400" /> : <Copy size={18} />}
-                  </button>
-                )}
-                <button
-                  onClick={onClose}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Content with Markdown & LaTeX */}
-            <div className="flex-1 overflow-y-auto px-8 py-4 custom-scrollbar">
-              {hint ? (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="prose prose-invert prose-cyan max-w-none text-slate-300 markdown-content"
-                >
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkMath]} 
-                    rehypePlugins={[rehypeKatex]}
-                    components={{
-                      h1: ({node, ...props}) => <h1 className="text-cyan-400 font-black text-2xl mt-8 mb-4 uppercase tracking-tight" {...props} />,
-                      h2: ({node, ...props}) => <h2 className="text-sky-500 font-bold text-lg mt-6 mb-3 flex items-center gap-2 uppercase tracking-wide" {...props} />,
-                      p: ({node, ...props}) => <p className="leading-relaxed mb-4 text-[var(--text-main)]" {...props} />,
-                      strong: ({node, ...props}) => <strong className="text-[var(--text-main)] font-black" {...props} />,
-                      ul: ({node, ...props}) => <ul className="list-disc ml-4 space-y-2 mb-4" {...props} />,
-                      ol: ({node, ...props}) => <ol className="list-decimal ml-4 space-y-2 mb-4" {...props} />,
-                      li: ({node, ...props}) => <li className="text-[var(--text-dim)]" {...props} />,
-                    }}
-                  >
-                    {preprocessLatex(hint)}
-                  </ReactMarkdown>
-                </motion.div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-40">
-                  <div className="w-20 h-20 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center">
-                    <Box size={32} className="text-slate-700" />
-                  </div>
-                  <p className="text-slate-500 text-sm max-w-[200px]">Tạo mô hình 3D trước để kích hoạt trí tuệ nhân tạo trợ giúp.</p>
-                </div>
-              )}
-            </div>
-
-            <div className="p-8 border-t border-white/5 bg-black/10">
-              <div className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/10 flex items-start gap-3">
-                <Info size={16} className="text-cyan-400 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-[var(--text-dim)] leading-relaxed italic">
-                  Gợi ý này được tạo tự động nhằm hỗ trợ tư duy không gian. Hãy sử dụng nó như một tài liệu tham khảo để rèn luyện kỹ năng tự giải toán nhé!
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
+function loadXP() {
+  try { return parseInt(localStorage.getItem('spatialmind_xp') || '0', 10); }
+  catch { return 0; }
+}
+function loadStreak() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('daily_progress') || '{}');
+    return stored.streak || 0;
+  } catch { return 0; }
 }
 
 // =====================
@@ -183,21 +102,79 @@ export default function App() {
   const [hintData, setHintData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isHintOpen, setIsHintOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activeMode, setActiveMode] = useState('GEOMETRY'); // GEOMETRY, VECTOR, GRAPH
+  const [activeMode, setActiveMode] = useState('GEOMETRY');
   const [graphExpression, setGraphExpression] = useState('sin(x)');
   const [algebraData, setAlgebraData] = useState(null);
-  const [theme, setTheme] = useState('dark'); // dark, light
+  const [theme, setTheme] = useState('dark');
   const [showAxes, setShowAxes] = useState(true);
   const [uploadedImage, setUploadedImage] = useState(null);
-  const controlsRef = useRef();
+  
+  // Gamification state
+  const [xp, setXP] = useState(loadXP);
+  const [streak, setStreak] = useState(loadStreak);
+  const [showDailyChallenge, setShowDailyChallenge] = useState(false);
+  const [particleTrigger, setParticleTrigger] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [isExplorerOpen, setIsExplorerOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [explorerPendingGenerate, setExplorerPendingGenerate] = useState(false);
 
-  // Đồng bộ theme vào thuộc tính của body
+  const controlsRef = useRef();
+  const generateRef = useRef(null);
+
+  // Sync theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Persist XP
+  useEffect(() => {
+    localStorage.setItem('spatialmind_xp', String(xp));
+  }, [xp]);
+
+  // Show daily challenge on first visit of the day
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('daily_progress') || '{}');
+      const today = new Date().toISOString().slice(0, 10);
+      if (stored.date !== today) {
+        setTimeout(() => setShowDailyChallenge(true), 1500);
+      }
+    } catch {}
+  }, []);
+
+  // URL params: auto-load problem from ?problem=...
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const problemParam = params.get('problem');
+      if (problemParam) {
+        setPromptInput(decodeURIComponent(problemParam));
+        // Auto trigger generation after short delay
+        setTimeout(() => {
+          // Clean the URL without reload
+          window.history.replaceState({}, '', window.location.pathname);
+        }, 200);
+      }
+    } catch {}
+  }, []);
+
+  // ExplorerMode: trigger generate after state settles
+  useEffect(() => {
+    if (explorerPendingGenerate && promptInput.trim()) {
+      setExplorerPendingGenerate(false);
+      handleGenerate();
+    }
+  }, [explorerPendingGenerate, promptInput]);
+
+  const gainXP = useCallback((amount) => {
+    setXP(prev => prev + amount);
+    setParticleTrigger(t => t + 1);
+  }, []);
 
   const handleGenerate = async () => {
     if (!promptInput.trim()) {
@@ -206,6 +183,7 @@ export default function App() {
     }
     setLoading(true);
     setError('');
+    setCompletedSteps(new Set());
     
     try {
       const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
@@ -215,14 +193,13 @@ export default function App() {
           ? `${baseUrl}/api/geometry/calculate` 
           : 'http://localhost:8000/api/geometry/calculate';
           
-        // Thêm gợi ý cho AI nếu là chế độ Vector
         const query = activeMode === 'VECTOR' 
           ? `${promptInput} (Hãy xử lý bài toán này dưới góc độ vector không gian, vẽ các mũi tên vector)`
           : promptInput;
 
         const response = await axios.post(apiUrl, { 
           query,
-          image: uploadedImage // Gửi kèm ảnh base64 nếu có
+          image: uploadedImage
         });
         
         const data = response.data;
@@ -230,12 +207,16 @@ export default function App() {
         setHintData(data.hint ?? null);
         setActiveStep(0);
 
-        // Tự động chuyển mode dựa trên type trả về từ AI
+        // Auto switch mode
         if (data.type === '2D') {
           setActiveMode('GRAPH');
         } else {
           setActiveMode('GEOMETRY');
         }
+
+        // XP reward for generating
+        gainXP(data.xp_reward || 30);
+
       } else if (activeMode === 'GRAPH') {
         const apiUrl = baseUrl 
           ? `${baseUrl}/api/algebra/solve` 
@@ -246,7 +227,8 @@ export default function App() {
         if (response.data.function_string) {
           setGraphExpression(response.data.function_string);
         }
-        setHintData(null); // Hoặc bạn có thể gọi thêm Socratic Hint nếu cần
+        setHintData(null);
+        gainXP(40);
       }
       
       if (controlsRef.current) {
@@ -261,6 +243,20 @@ export default function App() {
     }
   };
 
+  const handleStepClick = (idx) => {
+    setActiveStep(idx + 1);
+    if (!completedSteps.has(idx)) {
+      const newSet = new Set(completedSteps);
+      newSet.add(idx);
+      setCompletedSteps(newSet);
+      gainXP(20);
+      // Confetti on completing last step
+      if (geometryData?.steps && idx === geometryData.steps.length - 1) {
+        setParticleTrigger(t => t + 1);
+      }
+    }
+  };
+
   const handleResetCamera = () => {
     if (controlsRef.current) {
       controlsRef.current.reset();
@@ -270,6 +266,12 @@ export default function App() {
   return (
     <div className="flex h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-hidden select-none ocean-gradient">
       
+      {/* 🎮 Game HUD - Top Right */}
+      <GameHUD xp={xp} streak={streak} onOpenProfile={() => setIsProfileOpen(true)} />
+
+      {/* 🌟 Particle Celebration */}
+      <ParticleEffect trigger={particleTrigger} />
+
       {/* 🚀 Top Navigation HUD */}
       <div className="fixed top-8 left-0 w-full flex justify-center z-[60] pointer-events-none">
         <motion.div 
@@ -302,6 +304,47 @@ export default function App() {
               </button>
             ))}
           </div>
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+
+          {/* Daily Challenge button */}
+          <button
+            onClick={() => setShowDailyChallenge(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400 transition-all"
+            title="Daily Challenge"
+          >
+            <Flame size={16} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Daily</span>
+          </button>
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+
+          {/* Explorer Mode button */}
+          <button
+            onClick={() => setIsExplorerOpen(e => !e)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
+              isExplorerOpen
+                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
+                : 'hover:bg-cyan-500/10 text-slate-500 hover:text-cyan-400'
+            }`}
+            title="Explorer Mode"
+          >
+            <Sliders size={16} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Explorer</span>
+          </button>
+
+          {/* Share button */}
+          <button
+            onClick={() => setIsShareOpen(s => !s)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
+              isShareOpen
+                ? 'bg-violet-500/15 text-violet-400 border border-violet-400/20'
+                : 'hover:bg-violet-500/10 text-slate-500 hover:text-violet-400'
+            }`}
+            title="Chia sẻ bài"
+          >
+            <Share2 size={16} />
+          </button>
 
           <div className="h-6 w-[1px] bg-white/10 mx-1" />
 
@@ -352,7 +395,7 @@ export default function App() {
                 SpatialMind
               </h1>
               <p className="text-[10px] text-cyan-500/80 font-bold uppercase tracking-widest mt-1">
-                v2.1 {theme === 'dark' ? 'HUD' : 'Light'} Edition
+                v2.2 {theme === 'dark' ? 'HUD' : 'Light'} Edition
               </p>
             </div>
           </div>
@@ -369,9 +412,25 @@ export default function App() {
                   placeholder="Nhập đề bài hình học hoặc đồ thị tại đây..."
                   value={promptInput}
                   onChange={(e) => setPromptInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) handleGenerate(); }}
                 />
                 <ImageUpload image={uploadedImage} setImage={setUploadedImage} />
               </div>
+
+              {/* Error */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-start gap-3 p-4 rounded-2xl bg-red-500/5 border border-red-500/20"
+                  >
+                    <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-red-300 leading-relaxed">{error}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="flex flex-col gap-3">
                 <motion.button
@@ -386,20 +445,22 @@ export default function App() {
                 >
                   {loading ? <RotateCcw className="animate-spin" size={16} /> : <Sparkles size={16} />}
                   {loading ? 'Đang phân tích...' : 'Khởi tạo không gian'}
+                  {!loading && <span className="text-[9px] opacity-60 font-normal normal-case tracking-normal ml-1">(Ctrl+Enter)</span>}
                 </motion.button>
 
+                {/* Socratic Chat button */}
                 <motion.button
                   whileHover={hintData ? { scale: 1.02, backgroundColor: 'rgba(34, 211, 238, 0.15)' } : {}}
                   whileTap={hintData ? { scale: 0.98 } : {}}
-                  onClick={() => setIsHintOpen(true)}
-                  disabled={!hintData}
+                  onClick={() => setIsChatOpen(true)}
+                  disabled={!hintData && !geometryData}
                   className={`py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3
-                    ${hintData 
+                    ${hintData || geometryData
                       ? 'bg-cyan-500/5 border border-cyan-500/20 text-cyan-400' 
                       : 'bg-slate-800/10 border border-white/5 text-slate-700 cursor-not-allowed'}`}
                 >
-                  <Lightbulb size={16} />
-                  Gợi ý Socratic
+                  <MessageSquare size={16} />
+                  Socratic AI Chat
                 </motion.button>
               </div>
 
@@ -409,34 +470,74 @@ export default function App() {
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4 border-t border-white/5 space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tiến trình giải</span>
-                      <span className="text-[10px] text-cyan-500 font-bold bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                        {activeStep}/{geometryData.steps?.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-cyan-500 font-bold bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                          {activeStep}/{geometryData.steps?.length}
+                        </span>
+                        {geometryData.difficulty && (
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
+                            geometryData.difficulty === 'easy' ? 'text-emerald-400 bg-emerald-500/10' :
+                            geometryData.difficulty === 'medium' ? 'text-yellow-400 bg-yellow-500/10' :
+                            'text-red-400 bg-red-500/10'
+                          }`}>
+                            {geometryData.difficulty === 'easy' ? 'Dễ' : geometryData.difficulty === 'medium' ? 'Vừa' : 'Khó'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-3">
                       {geometryData.steps?.map((step, idx) => (
-                        <div 
+                        <motion.div 
                           key={idx}
-                          onClick={() => setActiveStep(idx + 1)}
-                          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            activeStep >= idx + 1 ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-[var(--glass-bg)] border-transparent opacity-40 grayscale hover:opacity-100'
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          onClick={() => handleStepClick(idx)}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${
+                            activeStep >= idx + 1 
+                              ? 'bg-cyan-500/10 border-cyan-500/30' 
+                              : 'bg-[var(--glass-bg)] border-transparent opacity-40 grayscale hover:opacity-100'
                           }`}
                         >
-                          <p className="text-[11px] font-black text-cyan-500 mb-2 uppercase tracking-tighter">Bước {idx + 1}</p>
+                          {completedSteps.has(idx) && (
+                            <div className="absolute top-3 right-3">
+                              <CheckCircle2 size={14} className="text-emerald-400" />
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-[11px] font-black text-cyan-500 uppercase tracking-tighter">Bước {idx + 1}</p>
+                            <span className="text-[9px] text-yellow-400/70 font-bold">+20 XP</span>
+                          </div>
                           <div className="text-[12px] text-[var(--text-main)] leading-relaxed opacity-90">
                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                                 {preprocessLatex(step.explanation)}
                              </ReactMarkdown>
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
+
+                    {/* Completion banner */}
+                    {geometryData.steps && completedSteps.size === geometryData.steps.length && geometryData.steps.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3"
+                      >
+                        <Trophy size={18} className="text-emerald-400 shrink-0" />
+                        <div>
+                          <p className="text-emerald-400 font-black text-sm">Hoàn thành! 🎉</p>
+                          <p className="text-emerald-300/60 text-[10px]">+{geometryData.xp_reward || 50} XP đã được cộng</p>
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
 
+          {/* Collapsed mini icons */}
           <div className={`absolute left-0 top-32 w-full flex flex-col items-center gap-8 transition-all duration-300 ${isSidebarCollapsed ? 'opacity-100 visible translate-x-0' : 'opacity-0 invisible -translate-x-10'}`}>
             <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
                {activeMode === 'GEOMETRY' ? <Box size={22} className="text-white" /> : 
@@ -445,13 +546,14 @@ export default function App() {
             </div>
             <div className="flex flex-col gap-6 items-center">
               <button onClick={handleGenerate} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><Sparkles size={20} /></button>
-              <button onClick={() => setIsHintOpen(true)} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><Lightbulb size={20} /></button>
+              <button onClick={() => setIsChatOpen(true)} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><MessageSquare size={20} /></button>
+              <button onClick={() => setShowDailyChallenge(true)} className="p-3 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all"><Flame size={20} /></button>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* 🧊 Pop-up Results Box */}
+      {/* 🧊 Pop-up Results Box (Graph mode) */}
       {activeMode === 'GRAPH' && algebraData && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
@@ -499,9 +601,13 @@ export default function App() {
 
       {/* 🧊 3D Canvas Box */}
       <div className="flex-1 relative overflow-hidden bg-[#020617]">
-        <div className="absolute top-8 right-8 z-40 flex flex-col gap-2">
-          <button className="w-12 h-12 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all hover:bg-white/10">
-            <Maximize size={20} />
+        <div className="absolute top-8 right-8 z-40 flex flex-col gap-2 mt-16">
+          <button 
+            onClick={handleResetCamera}
+            className="w-12 h-12 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all hover:bg-white/10"
+            title="Reset Camera"
+          >
+            <RotateCcw size={18} />
           </button>
         </div>
 
@@ -510,7 +616,7 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/10 blur-[120px] rounded-full translate-y-1/2 -translate-x-1/2" />
         </div>
 
-        {/* 🎨 Views based on activeMode */}
+        {/* Views based on activeMode */}
         {activeMode === 'GRAPH' ? (
           <div className="absolute inset-0 z-10 p-12 flex items-center justify-center">
             {geometryData?.type === '2D' ? (
@@ -575,8 +681,6 @@ export default function App() {
                 autoRotate={!geometryData && activeMode === 'GEOMETRY'}
                 autoRotateSpeed={0.5}
               />
-              
-              {/* Trục & Lưới phụ đã được ẩn theo yêu cầu */}
             </Suspense>
           </Canvas>
         )}
@@ -594,12 +698,57 @@ export default function App() {
         )}
       </div>
 
-      {/* 📑 Hint Panel Side-over */}
-      <HintPanel
+      {/* 💬 Socratic Chat Panel */}
+      <SocraticChat
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        problemStatement={promptInput}
         hint={hintData}
-        isOpen={isHintOpen}
-        onClose={() => setIsHintOpen(false)}
       />
+
+      {/* 🔍 Explorer Mode Panel */}
+      <ExplorerMode
+        isOpen={isExplorerOpen}
+        onClose={() => setIsExplorerOpen(false)}
+        onSendToAI={(problem) => {
+          setPromptInput(problem);
+          setActiveMode('GEOMETRY');
+          // Use a short delay so state updates first, then trigger via flag
+          setExplorerPendingGenerate(true);
+        }}
+      />
+
+      {/* 🔗 Share Panel */}
+      <SharePanel
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        problem={promptInput}
+        geometryData={geometryData}
+      />
+
+      {/* 👤 Profile Dashboard */}
+      <ProfileDashboard
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        xp={xp}
+        streak={streak}
+      />
+
+      {/* 🏆 Daily Challenge Modal */}
+      {showDailyChallenge && (
+        <DailyChallenge
+          onClose={() => setShowDailyChallenge(false)}
+          onSelectChallenge={(problem) => {
+            setPromptInput(problem);
+            setActiveMode('GEOMETRY');
+          }}
+          onXPGain={(amount) => {
+            gainXP(amount);
+            const stored = JSON.parse(localStorage.getItem('daily_progress') || '{}');
+            setStreak(stored.streak || 0);
+          }}
+        />
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar {
@@ -629,6 +778,19 @@ export default function App() {
           overflow-y: hidden;
           padding: 0.5rem 0;
         }
+
+        .markdown-chat p {
+          margin-bottom: 0.5rem;
+          line-height: 1.6;
+        }
+        .markdown-chat p:last-child {
+          margin-bottom: 0;
+        }
+        .markdown-chat .katex {
+          font-size: 1em;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
     </div>
   );

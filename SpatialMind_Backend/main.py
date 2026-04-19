@@ -2,6 +2,8 @@ import os
 import json
 import logging
 import base64
+import random
+from datetime import date
 import sympy as sp
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +13,14 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 import time
+
+# Load challenge bank
+_challenge_bank_path = os.path.join(os.path.dirname(__file__), 'challenge_bank.json')
+try:
+    with open(_challenge_bank_path, 'r', encoding='utf-8') as f:
+        CHALLENGE_BANK = json.load(f)
+except Exception:
+    CHALLENGE_BANK = []
 
 # Load biến môi trường
 # Chỉ định rõ đường dẫn .env để tránh lỗi không tìm thấy khi chạy bat
@@ -103,6 +113,13 @@ QUY TẮC HIỂN THỊ:
    - Đỉnh thường đặt tại z=0 cho đáy. a=2.0, h=3.0 mặc định.
    - Nét đứt (style="dashed") cho các cạnh khuất.
 5. Vẽ biểu tượng vuông góc: Dùng type="right_angle".
+6. Tô màu cạnh: Trong mảng edges, thêm trường "color" để phân biệt:
+   - Cạnh đáy chính: "color": "blue"
+   - Cạnh bên: "color": "white"
+   - Cạnh ẩn/phụ: "color": "gray"
+   - Cạnh được highlight trong bài toán: "color": "red"
+7. Đánh giá độ khó và ước tính XP phần thưởng (1-200): trả về field "xp_reward" (int).
+8. Trả về "difficulty": "easy" | "medium" | "hard"
 
 BẮT BUỘC TRẢ VỀ JSON KHÔNG CÓ TEXT DƯ QUY ĐỊNH SAU:
 """
@@ -207,7 +224,9 @@ def calculate_geometry(request: GeometryRequest):
             "vectors": formatted_vectors,
             "functions": data.get("functions", []),
             "steps": data.get("steps", []),
-            "hint": data.get("steps", [{}])[0].get("hint", "AI đã phân tích xong đề bài.")
+            "hint": data.get("steps", [{}])[0].get("hint", "AI đã phân tích xong đề bài."),
+            "xp_reward": data.get("xp_reward", 50),
+            "difficulty": data.get("difficulty", "medium")
         }
         
     except Exception as e:
@@ -332,6 +351,39 @@ def get_socratic_hint(request: SocraticRequest):
     except Exception as e:
         logging.error(f"Lỗi Socratic Hint: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Lỗi xử lý gợi ý: {str(e)}")
+
+
+# --- Daily Challenge Endpoint ---
+class DailyChallengeResponse(BaseModel):
+    date: str
+    challenges: List[Dict[str, Any]]
+
+@app.get("/api/daily-challenge", response_model=DailyChallengeResponse)
+def get_daily_challenge():
+    """Trả về 3 bài toán ngẫu nhiên mỗi ngày (seed theo ngày để ai cũng có cùng bài)."""
+    today = str(date.today())
+    # Seed random theo ngày → cùng ngày cùng bài
+    seed = int(today.replace('-', ''))
+    rng = random.Random(seed)
+    
+    if not CHALLENGE_BANK:
+        raise HTTPException(status_code=500, detail="Challenge bank trống.")
+    
+    # Chọn 1 easy, 1 medium, 1 hard
+    easy = [c for c in CHALLENGE_BANK if c['difficulty'] == 'easy']
+    medium = [c for c in CHALLENGE_BANK if c['difficulty'] == 'medium']
+    hard = [c for c in CHALLENGE_BANK if c['difficulty'] == 'hard']
+    
+    selected = []
+    if easy: selected.append(rng.choice(easy))
+    if medium: selected.append(rng.choice(medium))
+    if hard: selected.append(rng.choice(hard))
+    
+    # Fallback nếu thiếu
+    while len(selected) < 3 and CHALLENGE_BANK:
+        selected.append(rng.choice(CHALLENGE_BANK))
+    
+    return DailyChallengeResponse(date=today, challenges=selected[:3])
 
 
 if __name__ == "__main__":

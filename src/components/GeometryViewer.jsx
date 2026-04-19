@@ -1,54 +1,313 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Line, Sphere, Html, Float } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import SpatialVector from './Math/SpatialVector';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const COLORS = {
-  red: '#f43f5e',
-  blue: '#22d3ee',
+  red:   '#f43f5e',
+  blue:  '#22d3ee',
   green: '#2dd4bf',
   black: '#475569',
   white: '#f1f5f9',
+  gray:  '#64748b',
   labelLight: '#0f172a',
-  labelDark: '#f8fafc'
+  labelDark:  '#f8fafc',
 };
 
+// =====================
+// Cinematic Camera Controller
+// =====================
+function CameraController({ highlighted, data }) {
+  const { controls, camera } = useThree();
+
+  useFrame(() => {
+    if (!controls) return;
+
+    let targetPos = new THREE.Vector3(0, 0, 0); // Default origin
+
+    if (highlighted) {
+      if (highlighted.type === 'vertex') {
+        const p = data.vertices[highlighted.key];
+        if (p) targetPos.set(...p);
+      } else if (highlighted.type === 'edge') {
+        const [from, to] = highlighted.key.split('-'); // assuming edgeKeys are 'A-B'
+        const p1 = data.vertices[from];
+        const p2 = data.vertices[to];
+        if (p1 && p2) {
+          targetPos.set((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2, (p1[2] + p2[2]) / 2);
+        }
+      }
+    }
+
+    // Smoothly pan camera target
+    controls.target.lerp(targetPos, 0.06);
+
+    // If highlighted, slowly dolly in (zoom). If not, slowly dolly out to fit.
+    const currentDistance = camera.position.distanceTo(controls.target);
+    const targetDistance = highlighted ? 6 : 12; // Adjust desired distances
+    
+    // Smooth distance adjustment
+    const speed = 0.03;
+    const diff = targetDistance - currentDistance;
+    if (Math.abs(diff) > 0.1) {
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      camera.position.add(dir.multiplyScalar(diff * speed));
+    }
+  });
+
+  return null;
+}
+
+// =====================
+// Animated Edge (fade in per step)
+// =====================
+function AnimatedEdge({ points, color, lineWidth, dashed, stepIndex, currentStep }) {
+  const matRef = useRef();
+  const visible = stepIndex == null || currentStep >= stepIndex;
+
+  useFrame(() => {
+    if (!matRef.current) return;
+    const target = visible ? 0.9 : 0;
+    matRef.current.opacity += (target - matRef.current.opacity) * 0.08;
+  });
+
+  if (!visible) return null;
+  return (
+    <Line
+      points={points}
+      color={color}
+      lineWidth={lineWidth || 2}
+      dashed={dashed}
+      dashScale={1}
+      dashSize={0.2}
+      gapSize={0.15}
+      transparent
+      opacity={0.9}
+    />
+  );
+}
+
+// =====================
+// Clickable Vertex
+// =====================
+function ClickableVertex({ name, position, theme, onClick, isHighlighted }) {
+  const meshRef = useRef();
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    const target = isHighlighted ? 1.5 : 1;
+    meshRef.current.scale.lerp(new THREE.Vector3(target, target, target), 0.1);
+  });
+
+  return (
+    <group position={position}>
+      <Sphere
+        ref={meshRef}
+        args={[0.08, 16, 16]}
+        onClick={(e) => { e.stopPropagation(); onClick(name, position, 'vertex'); }}
+        onPointerOver={() => document.body.style.cursor = 'pointer'}
+        onPointerOut={() => document.body.style.cursor = 'auto'}
+      >
+        <meshStandardMaterial
+          color={isHighlighted ? '#fbbf24' : (theme === 'dark' ? '#ffffff' : '#0f172a')}
+          emissive={isHighlighted ? '#fbbf24' : (theme === 'dark' ? '#22d3ee' : '#0f172a')}
+          emissiveIntensity={isHighlighted ? 3 : (theme === 'dark' ? 0.5 : 0)}
+        />
+      </Sphere>
+      <Html distanceFactor={10}>
+        <div
+          className={`px-2 py-0.5 rounded border text-[10px] font-bold whitespace-nowrap select-none pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 shadow-lg transition-all duration-200 ${
+            isHighlighted
+              ? 'bg-yellow-500/90 border-yellow-300/80 text-black scale-110'
+              : theme === 'dark'
+                ? 'bg-slate-900/80 border-white/20 text-white backdrop-blur-sm'
+                : 'bg-white/90 border-slate-200 text-slate-900 backdrop-blur-sm'
+          }`}
+        >
+          {name}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+// =====================
+// Clickable Edge (invisible mesh for hit detection)
+// =====================
+function ClickableEdge({ from, to, color, lineWidth, dashed, onClick, isHighlighted, edgeKey }) {
+  const midPoint = useMemo(() => {
+    return [
+      (from[0] + to[0]) / 2,
+      (from[1] + to[1]) / 2,
+      (from[2] + to[2]) / 2,
+    ];
+  }, [from, to]);
+
+  const length = useMemo(() => {
+    const dx = to[0]-from[0], dy = to[1]-from[1], dz = to[2]-from[2];
+    return Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }, [from, to]);
+
+  const glowColor = isHighlighted ? '#fbbf24' : (COLORS[color] || COLORS.blue);
+  const glowWidth = isHighlighted ? (lineWidth || 2) + 4 : (lineWidth || 2);
+
+  return (
+    <group>
+      <Line
+        points={[from, to]}
+        color={glowColor}
+        lineWidth={glowWidth}
+        dashed={dashed}
+        dashScale={1}
+        dashSize={0.2}
+        gapSize={0.15}
+        transparent
+        opacity={isHighlighted ? 1 : 0.75}
+      />
+      {/* Invisible wider tube for click detection */}
+      <mesh
+        position={midPoint}
+        onClick={(e) => { e.stopPropagation(); onClick(edgeKey, from, to, 'edge'); }}
+        onPointerOver={() => document.body.style.cursor = 'pointer'}
+        onPointerOut={() => document.body.style.cursor = 'auto'}
+      >
+        <sphereGeometry args={[0.15, 4, 4]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+    </group>
+  );
+}
+
+// =====================
+// Info Tooltip (HTML overlay)
+// =====================
+function InfoTooltip({ info, onClose }) {
+  if (!info) return null;
+
+  const labels = {
+    vertex: '📍 Đỉnh',
+    edge: '📏 Cạnh',
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+      className="fixed z-[150] pointer-events-auto"
+      style={{ left: info.screenX + 16, top: info.screenY - 8 }}
+    >
+      <div
+        className="px-4 py-3 rounded-2xl text-sm max-w-[220px]"
+        style={{
+          background: 'rgba(2,6,23,0.92)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(251,191,36,0.3)',
+          boxShadow: '0 0 20px rgba(251,191,36,0.15)',
+        }}
+      >
+        <div className="flex items-center justify-between gap-4 mb-1">
+          <span className="text-yellow-400 font-black text-[10px] uppercase tracking-widest">
+            {labels[info.type] || '🔷 Object'}
+          </span>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-xs">✕</button>
+        </div>
+        <p className="text-white font-bold text-sm">{info.name}</p>
+        {info.coords && (
+          <p className="text-slate-400 text-[10px] mt-1">
+            ({info.coords.map(v => v.toFixed(2)).join(', ')})
+          </p>
+        )}
+        {info.length != null && (
+          <p className="text-cyan-400 text-[10px] mt-1">Độ dài ≈ {info.length.toFixed(3)}</p>
+        )}
+        <p className="text-slate-500 text-[9px] mt-2 italic">{info.hint}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+// =====================
+// Main GeometryViewer
+// =====================
 const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true }) => {
+  const [highlighted, setHighlighted] = useState(null);
+  const [tooltip, setTooltip] = useState(null);
+
   if (!data || !data.vertices) return null;
 
-  // Render base edges
+  const handleVertexClick = useCallback((name, position, type) => {
+    const screenX = window.innerWidth / 2;
+    const screenY = window.innerHeight / 2;
+    setHighlighted({ key: name, type });
+    setTooltip({
+      name,
+      type,
+      coords: position,
+      screenX, screenY,
+      hint: 'Click vào cạnh hoặc đỉnh khác để so sánh',
+    });
+  }, []);
+
+  const handleEdgeClick = useCallback((key, from, to, type) => {
+    const dx = to[0]-from[0], dy = to[1]-from[1], dz = to[2]-from[2];
+    const length = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    const screenX = window.innerWidth / 2;
+    const screenY = window.innerHeight / 2;
+    setHighlighted({ key, type });
+    setTooltip({
+      name: `Cạnh ${key}`,
+      type,
+      length,
+      screenX, screenY,
+      hint: 'Đây là cạnh của hình học. Nhấn lại để bỏ chọn.',
+    });
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setHighlighted(null);
+    setTooltip(null);
+    document.body.style.cursor = 'auto';
+  }, []);
+
+  // Base edges with click support
   const baseEdges = useMemo(() => {
     if (!data.edges) return [];
     return data.edges.map((edge, idx) => {
-      const p1 = data.vertices[edge[0]];
-      const p2 = data.vertices[edge[1]];
+      const [fromKey, toKey, colorKey] = Array.isArray(edge) ? edge : [edge[0], edge[1]];
+      const p1 = data.vertices[fromKey];
+      const p2 = data.vertices[toKey];
       if (!p1 || !p2) return null;
+      const edgeKey = `${fromKey}-${toKey}`;
+      const isHighlighted = highlighted?.key === edgeKey;
+      const color = colorKey || (theme === 'dark' ? 'black' : 'white');
       return (
-        <Line
+        <ClickableEdge
           key={`base-edge-${idx}`}
-          points={[p1, p2]}
-          color={theme === 'dark' ? '#475569' : '#cbd5e1'}
+          edgeKey={edgeKey}
+          from={p1} to={p2}
+          color={color}
           lineWidth={2}
-          transparent
-          opacity={0.6}
+          isHighlighted={isHighlighted}
+          onClick={handleEdgeClick}
         />
       );
     });
-  }, [data]);
+  }, [data, highlighted, handleEdgeClick, theme]);
 
-  // Render steps (up to currentStep)
+  // Step elements
   const stepElements = useMemo(() => {
     if (!data.steps) return [];
     const elements = [];
-
     data.steps.forEach((step) => {
       if (step.step_number <= currentStep) {
-        step.draw_elements.forEach((el, elIdx) => {
+        step.draw_elements?.forEach((el, elIdx) => {
           const key = `step-${step.step_number}-el-${elIdx}`;
-
           if (el.type === 'line') {
-            const p1 = data.vertices[el.from];
-            const p2 = data.vertices[el.to];
+            const p1 = data.vertices[el.from || el.from_point];
+            const p2 = data.vertices[el.to || el.to_point];
             if (p1 && p2) {
               elements.push(
                 <Line
@@ -66,16 +325,11 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
               );
             }
           } else if (el.type === 'vector' || el.type === 'arrow') {
-            const p1 = data.vertices[el.from] || [0, 0, 0];
-            const p2 = data.vertices[el.to];
+            const p1 = data.vertices[el.from || el.from_point] || [0, 0, 0];
+            const p2 = data.vertices[el.to || el.to_point];
             if (p2) {
               elements.push(
-                <SpatialVector
-                  key={key}
-                  start={p1}
-                  end={p2}
-                  color={COLORS[el.color] || COLORS.blue}
-                />
+                <SpatialVector key={key} start={p1} end={p2} color={COLORS[el.color] || COLORS.blue} />
               );
             }
           } else if (el.type === 'point') {
@@ -98,7 +352,7 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
     return elements;
   }, [data, currentStep]);
 
-  // Render 3D Vectors (Prompt 3 Mission 1)
+  // Vector arrows
   const vectorElements = useMemo(() => {
     if (!data.vectors) return [];
     return data.vectors.map((vec, idx) => {
@@ -106,48 +360,63 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
       const dir = new THREE.Vector3(...vec.direction).normalize();
       const length = vec.length || 2;
       return (
-        <primitive 
-          key={`vector-${idx}`} 
-          object={new THREE.ArrowHelper(dir, origin, length, 0x22d3ee, 0.2, 0.1)} 
+        <primitive
+          key={`vector-${idx}`}
+          object={new THREE.ArrowHelper(dir, origin, length, 0x22d3ee, 0.2, 0.1)}
         />
       );
     });
   }, [data.vectors]);
 
-  // Render vertices & labels
+  // Vertices with click
   const vertexElements = useMemo(() => {
     return Object.entries(data.vertices).map(([name, coords]) => (
-      <group key={`vertex-${name}`} position={coords}>
-        <Sphere args={[0.06, 16, 16]}>
-          <meshStandardMaterial
-            color={theme === 'dark' ? '#ffffff' : '#0f172a'}
-            emissive={theme === 'dark' ? '#ffffff' : '#0f172a'}
-            emissiveIntensity={theme === 'dark' ? 0.3 : 0}
-          />
-        </Sphere>
-        <Html distanceFactor={10}>
-          <div className={`px-2 py-0.5 rounded border text-[10px] font-bold whitespace-nowrap select-none pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 shadow-lg transition-all
-            ${theme === 'dark'
-              ? 'bg-slate-900/80 border-white/20 text-white backdrop-blur-sm'
-              : 'bg-white/90 border-slate-200 text-slate-900 backdrop-blur-sm'}`}>
-            {name}
-          </div>
-        </Html>
-      </group>
+      <ClickableVertex
+        key={`vertex-${name}`}
+        name={name}
+        position={coords}
+        theme={theme}
+        onClick={handleVertexClick}
+        isHighlighted={highlighted?.key === name && highlighted?.type === 'vertex'}
+      />
     ));
-  }, [data.vertices]);
+  }, [data.vertices, theme, highlighted, handleVertexClick]);
 
   return (
-    <group>
-      {showAxes && <axesHelper args={[2]} />}
-      <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.2}>
-        {baseEdges}
-        {stepElements}
-        {vectorElements}
-        {vertexElements}
-      </Float>
-    </group>
+    <>
+      <CameraController highlighted={highlighted} data={data} />
+
+      <group onClick={(e) => { if (e.object.isMesh && e.object.geometry.type === 'BoxGeometry') return; }}>
+        {showAxes && <axesHelper args={[2]} />}
+        <Float speed={1.5} rotationIntensity={0.08} floatIntensity={0.15}>
+          {baseEdges}
+          {stepElements}
+          {vectorElements}
+          {vertexElements}
+        </Float>
+      </group>
+
+      {/* Click outside → deselect */}
+      <mesh
+        position={[0, 0, -20]}
+        onClick={handleClose}
+        visible={false}
+      >
+        <planeGeometry args={[1000, 1000]} />
+        <meshBasicMaterial />
+      </mesh>
+
+      {/* Tooltip overlay via Html */}
+      <Html fullscreen>
+        <AnimatePresence>
+          {tooltip && (
+            <InfoTooltip info={tooltip} onClose={handleClose} />
+          )}
+        </AnimatePresence>
+      </Html>
+    </>
   );
 };
 
 export default GeometryViewer;
+
