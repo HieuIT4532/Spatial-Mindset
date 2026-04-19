@@ -103,6 +103,17 @@ function SceneLoader() {
 }
 
 // =====================
+// Helpers: LaTeX
+// =====================
+const preprocessLatex = (text) => {
+  if (!text) return "";
+  // Ensure we don't have double escaped backslashes coming from JSON
+  let processed = text.replace(/\\\\/g, "\\");
+  // Wrap simple $...$ with standard markdown math if needed or adjust for katex
+  return processed;
+};
+
+// =====================
 // Component: Main App
 // =====================
 export default function App() {

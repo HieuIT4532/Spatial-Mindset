@@ -238,7 +238,15 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
   const [highlighted, setHighlighted] = useState(null);
   const [tooltip, setTooltip] = useState(null);
 
-  if (!data || !data.vertices) return null;
+  if (!data || !data.vertices || typeof data.vertices !== 'object') {
+    return (
+      <Html center>
+        <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/5">
+          Chưa có dữ liệu không gian
+        </div>
+      </Html>
+    );
+  }
 
   const handleVertexClick = useCallback((name, position, type, event) => {
     // Get mouse coordinates from the three.js event
@@ -286,7 +294,7 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
       const [fromKey, toKey, colorKey, styleKey] = Array.isArray(edge) ? edge : [edge[0], edge[1]];
       const p1 = data.vertices[fromKey];
       const p2 = data.vertices[toKey];
-      if (!p1 || !p2) return null;
+      if (!p1 || !p2 || !Array.isArray(p1) || !Array.isArray(p2)) return null;
       const edgeKey = `${fromKey}-${toKey}`;
       const isHighlighted = highlighted?.key === edgeKey;
       const color = colorKey || (theme === 'dark' ? 'black' : 'white');
@@ -318,7 +326,7 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
             const p1 = data.vertices[el.from || el.from_point];
             const p2 = data.vertices[el.to || el.to_point];
             const isDashed = el.style === 'dashed';
-            if (p1 && p2) {
+            if (p1 && p2 && Array.isArray(p1) && Array.isArray(p2)) {
               elements.push(
                 <Line
                   key={key}

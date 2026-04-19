@@ -196,7 +196,11 @@ BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
         # Regex này tìm các dấu \ đứng trước một ký tự đặc biệt của LaTeX nhưng không phải là \\
         import re
         # Sửa các trường hợp \frac, \sqrt, \alpha... mà quên double backslash
+        # Nhưng tránh sửa các dấu \ đã được escape sẵn (\\)
         response_text = re.sub(r'(?<!\\)\\(?=[a-zA-Z{}])', r'\\\\', response_text)
+        
+        # Đảm bảo các ký tự đặc biệt lồng nhau được xử lý đúng
+        response_text = response_text.replace('\\\\ ', '\\\\') 
 
         data_raw = json.loads(response_text)
         data_obj = GeometryResponseOutput(**data_raw)
@@ -206,9 +210,12 @@ BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
         formatted_vertices = {}
         for v in data.get("vertices", []):
             coords = v.get("coords", [0, 0, 0])
-            if len(coords) == 3:
+            if coords and len(coords) >= 3:
                 # Transformation: (x, y, z) AI -> (x, z, -y) Three.js
                 formatted_vertices[v["name"]] = [coords[0], coords[2], -coords[1]]
+            elif coords and len(coords) == 2:
+                # Fallback cho 2D vertices trả về trong 3D context
+                formatted_vertices[v["name"]] = [coords[0], 0, -coords[1]]
         
         # Chuyển đổi tọa độ cho Vectors (Sync with vertices)
         raw_vectors = data.get("vectors", [])
