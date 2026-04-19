@@ -167,15 +167,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
   }
 }
 
-QUY TẮC QUAN TRỌNG:
-1. Tọa độ (x, y, z): Sử dụng hệ tọa độ Descartes chuẩn.
-2. Nét vẽ: Cạnh khuất BẮT BUỘC để `style: "dashed"`.
-3. Quiz: 
-   - Câu hỏi phải mang tính kiểm tra sự hiểu biết của học sinh sau khi xem lời giải.
-   - 4 đáp án phải đồng nhất về định dạng LaTeX. 
-   - Đáp án nhiễu phải được tính toán dựa trên các lỗi sai phổ biến của học sinh.
-   - Luôn xáo trộn vị trí đáp án đúng và cập nhật `correct_index` tương ứng.
-4. XP Reward: Dựa trên độ phức tạp (Easy: 30-50, Medium: 60-100, Hard: 120-200)."""
+4. XP Reward: Dựa trên độ phức tạp (Easy: 30-50, Medium: 60-100, Hard: 120-200).
+5. JSON ESCAPING: BẮT BUỘC escape tất cả dấu gạch chéo ngược (\\) trong LaTeX thành gạch chéo ngược kép (\\\\) để JSON hợp lệ. Ví dụ: "\\\\frac{a}{b}" thay vì "\\frac{a}{b}"."""
 
         contents = [f"Đề bài: {request.query}"]
         if request.image:
@@ -192,7 +185,20 @@ QUY TẮC QUAN TRỌNG:
             )
         )
 
-        data_raw = json.loads(response.text.strip())
+        # Cleanup and Parse
+        response_text = response.text.strip()
+        # Loại bỏ các đoạn bọc ```json ... ``` nếu có (đề phòng)
+        if response_text.startswith("```"):
+            response_text = response_text.split("```json")[-1].split("```")[0].strip()
+        
+        # Hardening: Tự động sửa lỗi escape phổ biến cho LaTeX nếu AI quên
+        # Thay thế \ (không được escape) bằng \\
+        # Regex này tìm các dấu \ đứng trước một ký tự đặc biệt của LaTeX nhưng không phải là \\
+        import re
+        # Sửa các trường hợp \frac, \sqrt, \alpha... mà quên double backslash
+        response_text = re.sub(r'(?<!\\)\\(?=[a-zA-Z{}])', r'\\\\', response_text)
+
+        data_raw = json.loads(response_text)
         data_obj = GeometryResponseOutput(**data_raw)
         data = data_obj.model_dump()
         
@@ -245,12 +251,11 @@ Yêu cầu:
 2. Giải toán từng bước.
 3. Trả về kết quả cuối cùng dưới dạng LaTeX.
 
-Đầu ra bắt buộc là JSON:
-{
-  "result_latex": "Kết quả cuối cùng dạng LaTeX (vd: \\frac{2x}{3})",
   "steps": ["Bước 1: ...", "Bước 2: ..."],
   "function_string": "Chuỗi hàm số chuẩn Python để vẽ đồ thị (vd: sin(x) + x**2). Nếu không có hàm số thì để null."
 }
+
+BẮT BUỘC: Hợp lệ JSON 100%. Mọi dấu gạch chéo ngược trong LaTeX phải được escape kép (\\\\).
 """
 
 @app.post("/api/algebra/solve", response_model=AlgebraResponse)
@@ -268,7 +273,14 @@ def solve_algebra(request: AlgebraRequest):
             )
         )
         
-        data = json.loads(response.text.strip())
+        response_text = response.text.strip()
+        if response_text.startswith("```"):
+            response_text = response_text.split("```json")[-1].split("```")[0].strip()
+        
+        import re
+        response_text = re.sub(r'(?<!\\)\\(?=[a-zA-Z{}])', r'\\\\', response_text)
+        
+        data = json.loads(response_text)
         
         # Ở đây chúng ta có thể thực hiện tính toán SymPy thực tế để kiểm chứng 
         # Ví dụ: Nếu có function_string, ta có thể dùng SymPy để tính đạo hàm thực tế
