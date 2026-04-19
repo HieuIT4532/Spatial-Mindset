@@ -175,15 +175,43 @@ BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
             image_data = request.image.split(",")[-1] if "," in request.image else request.image
             contents.append(types.Part.from_bytes(data=base64.b64decode(image_data), mime_type="image/jpeg"))
 
-        response = gemini_client.models.generate_content(
-            model="gemini-3-flash-preview", 
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                response_mime_type="application/json",
-                temperature=0.1
-            )
-        )
+        #Retry mechanism for Gemini API
+        max_retries = 3
+        last_error = None
+        response = None
+
+        for attempt in range(max_retries):
+            try:
+                response = gemini_client.models.generate_content(
+                    model="gemini-3-flash-preview", 
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json",
+                        temperature=0.1
+                    )
+                )
+                break
+            except Exception as e:
+                last_error = e
+                error_msg = str(e)
+                if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                    wait_time = (2 ** attempt) + random.random()
+                    logging.warning(f"Gemini Rate Limit hit. Retrying in {wait_time:.2f}s... (Attempt {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                elif "503" in error_msg or "Service Unavailable" in error_msg:
+                    wait_time = 1 + random.random()
+                    logging.warning(f"Gemini Service Unavailable. Retrying in {wait_time:.2f}s... (Attempt {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    raise e
+        else:
+            if last_error:
+                logging.error(f"Gemini max retries reached: {last_error}")
+                raise HTTPException(status_code=429, detail="AI đang bận (Quá giới hạn lượt gọi). Vui lòng đợi 1 phút rồi thử lại.")
+
+        if not response:
+             raise HTTPException(status_code=500, detail="Không nhận được phản hồi từ AI.")
 
         # Cleanup and Parse
         response_text = response.text.strip()
