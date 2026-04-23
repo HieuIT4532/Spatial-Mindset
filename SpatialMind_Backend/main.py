@@ -8,6 +8,7 @@ import random
 from datetime import date
 import sympy as sp
 from fastapi import FastAPI, HTTPException, Request
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
