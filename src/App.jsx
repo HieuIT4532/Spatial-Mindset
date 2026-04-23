@@ -131,6 +131,7 @@ export default function App() {
   const [activeMode, setActiveMode] = useState('GEOMETRY');
   const [graphExpression, setGraphExpression] = useState('sin(x)');
   const [algebraData, setAlgebraData] = useState(null);
+  const [showAlgebraSolution, setShowAlgebraSolution] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [showAxes, setShowAxes] = useState(true);
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -322,8 +323,8 @@ export default function App() {
           ? `${baseUrl}/api/algebra/solve` 
           : 'http://localhost:8000/api/algebra/solve';
           
-        const response = await axios.post(apiUrl, { query: promptInput });
         setAlgebraData(response.data);
+        setShowAlgebraSolution(true);
         if (response.data.function_string) {
           setGraphExpression(response.data.function_string);
         }
@@ -785,51 +786,113 @@ export default function App() {
         </div>
       </motion.div>
 
-      {/* 🧊 Pop-up Results Box (Graph mode) */}
-      {activeMode === 'GRAPH' && algebraData && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-6"
-        >
-          <div className="aqua-glass rounded-3xl p-8 shadow-2xl overflow-hidden relative border border-cyan-400/20">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h4 className="text-xs font-black text-cyan-500 uppercase tracking-widest mb-1">Kết quả Giải tích</h4>
-                <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-tighter">Phân tích chuyên sâu từ SymPy & LLM</p>
+      {/* 🧊 Vertical Solution Panel (Graph mode) */}
+      <AnimatePresence>
+        {activeMode === 'GRAPH' && algebraData && showAlgebraSolution && (
+          <motion.div 
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 200 }}
+            className="fixed top-0 right-0 h-full w-[33%] z-[101] flex flex-col shadow-2xl border-l border-white/5"
+            style={{
+              background: 'rgba(2,6,23,0.85)',
+              backdropFilter: 'blur(30px)',
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.2)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                  <Layers size={18} className="text-cyan-400" />
+                </div>
+                <div>
+                  <h2 className="text-white font-black text-sm uppercase tracking-tight">Kết quả Giải tích</h2>
+                  <p className="text-cyan-500/60 text-[9px] font-bold uppercase tracking-widest flex items-center gap-1 mt-0.5">
+                    <Sparkles size={8} /> Phân tích chuyên sâu
+                  </p>
+                </div>
               </div>
               <button 
-                onClick={() => setAlgebraData(null)}
-                className="p-2 rounded-full bg-black/10 text-[var(--text-dim)] hover:text-cyan-400"
+                onClick={() => setShowAlgebraSolution(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
             
-            <div className="space-y-6">
-              <div className={`p-6 rounded-2xl border border-white/5 overflow-x-auto ${theme === 'dark' ? 'bg-black/40' : 'bg-white/40'}`}>
-                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                   {`$$${algebraData.result_latex}$$`}
-                 </ReactMarkdown>
+            <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar space-y-8">
+              {/* Main Result Card */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <CheckCircle2 size={10} className="text-emerald-400" /> Kết quả cuối cùng
+                </label>
+                <div className={`p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 overflow-x-auto custom-scrollbar`}>
+                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                     {`$$${algebraData.result_latex}$$`}
+                   </ReactMarkdown>
+                </div>
               </div>
 
-              <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar no-scrollbar text-[var(--text-main)]">
+              {/* Vertical Steps */}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <LayoutDashboard size={10} className="text-cyan-500" /> Các bước phân tích
+                </label>
+                
                 {algebraData.steps?.map((step, idx) => (
-                  <div key={idx} className="shrink-0 w-64 p-4 bg-white/5 rounded-xl border border-white/5">
-                    <p className="text-[9px] font-black text-cyan-500 uppercase mb-2">Pha {idx + 1}</p>
-                    <div className="text-[11px] text-slate-400">
+                  <motion.div 
+                    key={idx} 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="p-5 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/20 transition-all group"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-5 h-5 rounded-md bg-cyan-500/10 flex items-center justify-center text-[10px] font-black text-cyan-400 border border-cyan-500/20">
+                        {idx + 1}
+                      </span>
+                      <p className="text-[10px] font-black text-cyan-500 uppercase tracking-widest">Pha {idx + 1}</p>
+                    </div>
+                    <div className="text-[13px] text-slate-300 leading-relaxed markdown-content">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                         {preprocessLatex(step)}
                       </ReactMarkdown>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
+
+              {/* Hint/Footer */}
+              <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 text-center">
+                <p className="text-[9px] text-cyan-400/60 font-bold uppercase tracking-[0.2em]">
+                  SpatialMind SymPy Engine
+                </p>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Toggle Button (Show when panel is hidden but data exists) */}
+      <AnimatePresence>
+        {activeMode === 'GRAPH' && algebraData && !showAlgebraSolution && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5, x: 20 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.5, x: 20 }}
+            onClick={() => setShowAlgebraSolution(true)}
+            className="fixed top-1/2 -translate-y-1/2 right-8 z-[60] w-14 h-14 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-2xl flex items-center justify-center border border-cyan-400/30 group transition-all"
+          >
+            <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ repeat: Infinity, duration: 4 }}>
+              <Sparkles size={24} />
+            </motion.div>
+            <div className="absolute right-full mr-4 px-3 py-2 bg-black/80 backdrop-blur-md rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+              <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Xem lời giải</p>
+            </div>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* 🧊 3D Canvas Box */}
       <div className="flex-1 relative overflow-hidden bg-[#020617]">
