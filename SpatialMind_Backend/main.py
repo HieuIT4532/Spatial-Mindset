@@ -5,8 +5,9 @@ import base64
 import random
 from datetime import date
 import sympy as sp
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
@@ -52,6 +53,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ----------------- Rate Limiting Middleware -----------------
+ip_last_request = {}
+RATE_LIMIT_SECONDS = 120
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Các endpoint cần giới hạn
+    limited_endpoints = [
+        "/api/geometry/calculate", 
+        "/api/algebra/solve", 
+        "/api/socratic-hint"
+    ]
+    
+    if request.url.path in limited_endpoints:
+        client_ip = request.client.host if request.client else "unknown"
+        current_time = time.time()
+        
+        if client_ip in ip_last_request:
+            time_passed = current_time - ip_last_request[client_ip]
+            if time_passed < RATE_LIMIT_SECONDS:
+                wait_time = int(RATE_LIMIT_SECONDS - time_passed)
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": f"Hệ thống đang chống quá tải. Vui lòng đợi {wait_time} giây trước khi đặt câu hỏi tiếp theo."}
+                )
+        
+        # Cập nhật thời gian request mới nhất cho IP này
+        ip_last_request[client_ip] = current_time
+
+    response = await call_next(request)
+    return response
+# -----------------------------------------------------------
 
 class GeometryRequest(BaseModel):
     query: str = Field(..., description="Đề bài ngôn ngữ tự nhiên từ học sinh")

@@ -152,6 +152,30 @@ export default function App() {
 
   const controlsRef = useRef();
   const generateRef = useRef(null);
+  const textareaRef = useRef(null);
+  const [showMathKeyboard, setShowMathKeyboard] = useState(false);
+
+  const insertMath = (latex, cursorOffset) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = promptInput;
+    
+    const before = currentText.substring(0, start);
+    const after = currentText.substring(end);
+    
+    const newText = before + latex + after;
+    setPromptInput(newText);
+    
+    // Đặt lại vị trí con trỏ (focus)
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + (cursorOffset !== undefined ? cursorOffset : latex.length);
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
 
   // Sync profile with backend (AppData)
   const syncProfile = useCallback(async (currentXP, currentStreak) => {
@@ -509,10 +533,55 @@ export default function App() {
           <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 translate-x-10 invisible' : 'opacity-100 translate-x-0 visible'}`}>
             <div className="space-y-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                  <LayoutDashboard size={10} className="text-cyan-500" /> Nhập nhiệm vụ
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <LayoutDashboard size={10} className="text-cyan-500" /> Nhập nhiệm vụ
+                  </label>
+                  <button 
+                    onClick={() => setShowMathKeyboard(!showMathKeyboard)}
+                    className={`text-[9px] px-2 py-1 rounded-lg font-bold uppercase tracking-wider transition-all border ${showMathKeyboard ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-white/5 text-slate-500 border-white/5 hover:text-slate-300'}`}
+                  >
+                    {showMathKeyboard ? 'Đóng phím' : 'Bàn phím Toán'}
+                  </button>
+                </div>
+
+                <AnimatePresence>
+                  {showMathKeyboard && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -10, height: 0 }}
+                      className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 overflow-hidden pb-2"
+                    >
+                      {[
+                        { label: 'Công thức', latex: '$  $', offset: 2, display: '$$' },
+                        { label: 'Phân số', latex: '\\frac{}{} ', offset: 6, display: 'a/b' },
+                        { label: 'Căn bậc 2', latex: '\\sqrt{} ', offset: 6, display: '√' },
+                        { label: 'Số mũ', latex: '^{} ', offset: 2, display: 'x²' },
+                        { label: 'Chỉ số dưới', latex: '_{} ', offset: 2, display: 'x₂' },
+                        { label: 'Góc', latex: '\\widehat{} ', offset: 9, display: '∠' },
+                        { label: 'Độ', latex: '^\\circ ', display: '°' },
+                        { label: 'Vector', latex: '\\vec{} ', offset: 5, display: 'v⃗' },
+                        { label: 'Vuông góc', latex: '\\perp ', display: '⊥' },
+                        { label: 'Song song', latex: '\\parallel ', display: '∥' },
+                        { label: 'Tam giác', latex: '\\triangle ', display: '△' },
+                        { label: 'Pi', latex: '\\pi ', display: 'π' }
+                      ].map((btn, i) => (
+                        <button
+                          key={i}
+                          onClick={() => insertMath(btn.latex, btn.offset)}
+                          title={btn.label}
+                          className="flex items-center justify-center py-2 bg-black/20 hover:bg-cyan-500/20 border border-white/5 hover:border-cyan-500/30 rounded-xl text-cyan-100 text-xs transition-all font-mono"
+                        >
+                          {btn.display}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <textarea
+                  ref={textareaRef}
                   rows={5}
                   className="w-full px-5 py-4 bg-black/10 text-[var(--text-main)] text-sm rounded-2xl border border-[var(--glass-border)] focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-[var(--text-dim)] resize-none shadow-inner leading-relaxed"
                   placeholder="Nhập đề bài hình học hoặc đồ thị tại đây..."
