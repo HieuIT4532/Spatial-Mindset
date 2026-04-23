@@ -1,5 +1,7 @@
 import os
 import json
+import urllib.request
+import urllib.error
 import logging
 import base64
 import random
@@ -502,7 +504,73 @@ def get_leaderboard():
     board = default_board + [{"name": user_data['name'], "weeklyXP": int(user_data['xp'] * 0.6), "rank": user_data['rank']}]
     return sorted(board, key=lambda x: x['weeklyXP'], reverse=True)
 
-# --- Existing Endpoints ---
+# --- Gemini Chat Proxy Endpoint ---
+# Proxy chuyển tiếp request từ Frontend sang Google Gemini API
+# API Key được bảo mật trên server, Frontend không cần biết key
+
+class ChatProxyRequest(BaseModel):
+    contents: List[Dict[str, Any]]
+    generationConfig: Optional[Dict[str, Any]] = None
+    systemInstruction: Optional[Dict[str, Any]] = None
+    safetySettings: Optional[List[Dict[str, Any]]] = None
+
+@app.post("/api/chat")
+async def proxy_chat(request: Request):
+    """Proxy endpoint chuyển tiếp request sang Google Gemini API.
+    Hỗ trợ fallback qua nhiều model khi bị giới hạn quota."""
+    
+    if not GEMINI_API_KEY or GEMINI_API_KEY == "your_api_key_here":
+        raise HTTPException(status_code=500, detail="Gemini API Key chưa được cấu hình trên server.")
+    
+    try:
+        post_data = await request.body()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Không thể đọc dữ liệu request.")
+    
+    # Danh sách các mô hình dự phòng khi bị giới hạn Quota
+    models = [
+        "gemini-2.0-flash",
+        "gemini-2.5-flash", 
+        "gemini-flash-latest", 
+        "gemini-pro-latest"
+    ]
+    
+    last_error_code = 500
+    last_error_body = {"error": {"message": "Unknown error"}}
+    
+    for model_name in models:
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        req = urllib.request.Request(
+            endpoint, 
+            data=post_data, 
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        try:
+            with urllib.request.urlopen(req) as response:
+                body = response.read()
+                return JSONResponse(
+                    status_code=200, 
+                    content=json.loads(body)
+                )
+        except urllib.error.HTTPError as e:
+            last_error_code = e.code
+            try:
+                error_body = e.read()
+                last_error_body = json.loads(error_body)
+            except Exception:
+                pass
+            
+            logging.warning(f"[Chat Proxy] [{model_name}] API Error {e.code}. Chuyển sang model tiếp theo...")
+            continue
+        except Exception as e:
+            last_error_code = 500
+            last_error_body = {"error": {"message": str(e)}}
+            logging.error(f"[Chat Proxy] [{model_name}] Exception: {e}")
+            continue
+    
+    # Nếu tất cả các mô hình đều thất bại
+    return JSONResponse(status_code=last_error_code, content=last_error_body)
 
 
 if __name__ == "__main__":
