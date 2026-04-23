@@ -335,8 +335,15 @@ export default function App() {
         controlsRef.current.reset();
       }
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      setError(detail || 'Mất kết nối với AI Backend. Hãy kiểm tra server.');
+      let errorMessage = 'Mất kết nối với AI Backend. Hãy kiểm tra server.';
+      if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.response?.status === 429) {
+        errorMessage = 'Hệ thống đang bận (Rate Limit). Vui lòng đợi một lát rồi thử lại.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
       console.error(err);
     } finally {
       setLoading(false);

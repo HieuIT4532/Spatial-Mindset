@@ -56,7 +56,7 @@ app.add_middleware(
 
 # ----------------- Rate Limiting Middleware -----------------
 ip_last_request = {}
-RATE_LIMIT_SECONDS = 120
+RATE_LIMIT_SECONDS = 10
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
@@ -68,7 +68,13 @@ async def rate_limit_middleware(request: Request, call_next):
     ]
     
     if request.url.path in limited_endpoints:
-        client_ip = request.client.host if request.client else "unknown"
+        # Lấy IP thật của client (hỗ trợ proxy như Render/Cloudflare)
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "unknown"
+            
         current_time = time.time()
         
         if client_ip in ip_last_request:
