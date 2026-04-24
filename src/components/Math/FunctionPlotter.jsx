@@ -4,7 +4,7 @@ import 'mafs/core.css';
 import 'mafs/font.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, X, Eye, EyeOff, Sparkles, Info, ChevronDown, ChevronUp, Layers, Maximize2, Minimize2
+  Plus, X, Eye, EyeOff, Sparkles, Info, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // =====================
@@ -150,9 +150,9 @@ function numericalDerivative(fn, x, h = 1e-6) {
 // =====================
 // Implicit Curve via Line.Segment
 // =====================
-function ImplicitCurve({ fn, color, xRange = [-100, 100], yRange = [-100, 100] }) {
+function ImplicitCurve({ fn, color, xRange, yRange }) {
   const segments = useMemo(
-    () => marchingSquares(fn, xRange, yRange, 300),
+    () => marchingSquares(fn, xRange, yRange, 180),
     [fn, xRange, yRange]
   );
   return (
@@ -198,8 +198,9 @@ export default function FunctionPlotter({
   const [expressions, setExpressions] = useState([
     { id: '1', formula: expression, color: EXPR_COLORS[0], visible: true },
   ]);
+  const [x0, setX0] = useState(0);
   const [showPresets, setShowPresets] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
 
   const addExpression = () => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -237,134 +238,112 @@ export default function FunctionPlotter({
 
   return (
     <div className="w-full h-full flex bg-[#0d1117] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-      {/* ─── FLOATING DRAGGABLE SIDEBAR ─── */}
-      <motion.div
-        drag
-        dragMomentum={false}
-        className={`absolute top-4 left-4 z-[100] flex flex-col bg-[#0d1117]/80 backdrop-blur-xl border border-cyan-500/30 shadow-2xl transition-all overflow-hidden ${
-          isMinimized ? 'w-14 h-14 rounded-full cursor-grab active:cursor-grabbing' : 'w-[340px] rounded-2xl cursor-default'
-        }`}
-      >
-        {isMinimized ? (
-          <div 
-            className="w-full h-full flex items-center justify-center text-cyan-400 hover:text-white transition-colors"
-            onDoubleClick={() => setIsMinimized(false)}
-          >
-            <Layers size={24} />
+      {/* ─── LEFT SIDEBAR ─── */}
+      <div className="w-[340px] flex flex-col border-r border-white/10 bg-[#0d1117]/80 backdrop-blur-xl shrink-0">
+        {/* Header */}
+        <div className="p-5 border-b border-white/5">
+          <div className="flex items-center gap-2 text-cyan-400 mb-1">
+            <Sparkles size={18} />
+            <h2 className="font-black text-sm uppercase tracking-widest">Biểu thức</h2>
           </div>
-        ) : (
-          <>
-            {/* Header */}
-            <div className="p-5 border-b border-white/5 cursor-grab active:cursor-grabbing flex justify-between items-start">
-              <div>
-                <div className="flex items-center gap-2 text-cyan-400 mb-1">
-                  <Sparkles size={18} />
-                  <h2 className="font-black text-sm uppercase tracking-widest">Biểu thức</h2>
-                </div>
-                <p className="text-[11px] text-slate-500">Nhập các hàm số để vẽ đồ thị</p>
-              </div>
-              <button onClick={() => setIsMinimized(true)} className="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all">
-                <Minimize2 size={16} />
-              </button>
-            </div>
+          <p className="text-[11px] text-slate-500">Nhập các hàm số để vẽ đồ thị</p>
+        </div>
 
-            {/* Expression List */}
-            <div className="max-h-[40vh] overflow-y-auto p-4 space-y-3 custom-scrollbar">
-              {expressions.map((expr) => (
-                <div
-                  key={expr.id}
-                  className="rounded-xl p-3 transition-all"
+        {/* Expression List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+          {expressions.map((expr) => (
+            <div
+              key={expr.id}
+              className="rounded-xl p-3 transition-all"
+              style={{
+                background: expr.visible ? 'rgba(88,166,255,0.03)' : 'rgba(0,0,0,0.2)',
+                border: `1px solid ${expr.visible ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.05)'}`,
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => updateExpression(expr.id, { visible: !expr.visible })}
+                  className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all"
                   style={{
-                    background: expr.visible ? 'rgba(88,166,255,0.03)' : 'rgba(0,0,0,0.2)',
-                    border: `1px solid ${expr.visible ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.05)'}`,
+                    background: expr.visible ? expr.color : 'transparent',
+                    border: `2px solid ${expr.color}`,
                   }}
                 >
-                  <div className="flex items-center gap-2">
+                  {expr.visible ? <Eye size={10} color="#000" /> : <EyeOff size={10} style={{ color: expr.color }} />}
+                </button>
+                <input
+                  type="text"
+                  value={expr.formula}
+                  onChange={e => updateExpression(expr.id, { formula: e.target.value })}
+                  placeholder="sin(x)  hoặc  x^2 + y^2 = 25"
+                  className="flex-1 bg-transparent border-none text-white text-sm font-mono outline-none placeholder:text-slate-600"
+                />
+                <button
+                  onClick={() => removeExpression(expr.id)}
+                  className="p-1 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={addExpression}
+            className="w-full py-3 rounded-xl border border-dashed border-white/15 text-slate-500 hover:text-cyan-400 hover:border-cyan-400/30 hover:bg-cyan-500/5 transition-all flex items-center justify-center gap-2 text-xs font-bold"
+          >
+            <Plus size={16} /> Thêm biểu thức mới
+          </button>
+        </div>
+
+        {/* Presets */}
+        <div className="border-t border-white/5 bg-black/20">
+          <button
+            onClick={() => setShowPresets(!showPresets)}
+            className="w-full p-4 flex items-center justify-between text-slate-400 hover:text-white transition-all"
+          >
+            <span className="text-xs font-bold">✨ Khám phá ví dụ</span>
+            {showPresets ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          <AnimatePresence>
+            {showPresets && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+                  {PRESETS.map(p => (
                     <button
-                      onClick={() => updateExpression(expr.id, { visible: !expr.visible })}
-                      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all"
-                      style={{
-                        background: expr.visible ? expr.color : 'transparent',
-                        border: `2px solid ${expr.color}`,
-                      }}
+                      key={p.label}
+                      onClick={() => loadPreset(p)}
+                      className="p-2.5 rounded-xl text-left text-xs text-slate-300 hover:text-white flex items-center gap-2 transition-all bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/20"
                     >
-                      {expr.visible ? <Eye size={10} color="#000" /> : <EyeOff size={10} style={{ color: expr.color }} />}
+                      <span>{p.icon}</span> {p.label}
                     </button>
-                    <input
-                      type="text"
-                      value={expr.formula}
-                      onChange={e => updateExpression(expr.id, { formula: e.target.value })}
-                      placeholder="sin(x)  hoặc  x^2 + y^2 = 25"
-                      className="flex-1 w-0 bg-transparent border-none text-white text-sm font-mono outline-none placeholder:text-slate-600"
-                    />
-                    <button
-                      onClick={() => removeExpression(expr.id)}
-                      className="p-1 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-              <button
-                onClick={addExpression}
-                className="w-full py-3 rounded-xl border border-dashed border-white/15 text-slate-500 hover:text-cyan-400 hover:border-cyan-400/30 hover:bg-cyan-500/5 transition-all flex items-center justify-center gap-2 text-xs font-bold"
-              >
-                <Plus size={16} /> Thêm biểu thức mới
-              </button>
-            </div>
-
-            {/* Presets */}
-            <div className="border-t border-white/5 bg-black/20">
-              <button
-                onClick={() => setShowPresets(!showPresets)}
-                className="w-full p-4 flex items-center justify-between text-slate-400 hover:text-white transition-all"
-              >
-                <span className="text-xs font-bold">✨ Khám phá ví dụ</span>
-                {showPresets ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-              <AnimatePresence>
-                {showPresets && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-                      {PRESETS.map(p => (
-                        <button
-                          key={p.label}
-                          onClick={() => loadPreset(p)}
-                          className="p-2.5 rounded-xl text-left text-xs text-slate-300 hover:text-white flex items-center gap-2 transition-all bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/20"
-                        >
-                          <span>{p.icon}</span> {p.label}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Tangent Explorer */}
-            <div className="p-4 border-t border-white/5 bg-black/30">
-              <div className="text-xs text-slate-500 mb-2 font-semibold">Khám phá tiếp tuyến x₀</div>
-              <input
-                type="range"
-                min={domain[0]}
-                max={domain[1]}
-                step="0.1"
-                value={x0}
-                onChange={e => setX0(parseFloat(e.target.value))}
-                className="w-full accent-cyan-500"
-              />
-              <div className="text-right text-xs text-cyan-400 mt-1 font-mono">x₀ = {x0.toFixed(1)}</div>
-            </div>
-          </>
-        )}
-      </motion.div>
+        {/* Tangent Explorer */}
+        <div className="p-4 border-t border-white/5 bg-black/30">
+          <div className="text-xs text-slate-500 mb-2 font-semibold">Khám phá tiếp tuyến x₀</div>
+          <input
+            type="range"
+            min={domain[0]}
+            max={domain[1]}
+            step="0.1"
+            value={x0}
+            onChange={e => setX0(parseFloat(e.target.value))}
+            className="w-full accent-cyan-500"
+          />
+          <div className="text-right text-xs text-cyan-400 mt-1 font-mono">x₀ = {x0.toFixed(1)}</div>
+        </div>
+      </div>
 
       {/* ─── GRAPH AREA ─── */}
       <div className="flex-1 relative">
@@ -390,6 +369,36 @@ export default function FunctionPlotter({
           {/* Tangent line for first explicit function */}
           {firstExplicit && <TangentLineVis fn={firstExplicit.fn} x0={x0} color={firstExplicit.color} />}
         </Mafs>
+
+        {/* Syntax Guide Overlay */}
+        <AnimatePresence>
+          {showGuide && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-4 right-4 z-10 max-w-[300px] rounded-xl p-4 text-xs pointer-events-auto"
+              style={{
+                background: 'rgba(13,17,23,0.75)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(34,211,238,0.15)',
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-cyan-400 font-bold flex items-center gap-1.5">
+                  <Info size={14} /> Hướng dẫn cú pháp
+                </span>
+                <button onClick={() => setShowGuide(false)} className="text-slate-500 hover:text-white"><X size={12} /></button>
+              </div>
+              <ul className="text-slate-400 space-y-1.5 list-disc pl-4">
+                <li><b className="text-white">Hàm tường minh:</b> <code className="text-cyan-300">x^2</code>, <code className="text-cyan-300">sin(x)</code>, <code className="text-cyan-300">sqrt(x)</code></li>
+                <li><b className="text-white">Hàm ẩn:</b> <code className="text-cyan-300">x^2 + y^2 = 25</code></li>
+                <li><b className="text-white">Toán tử:</b> <code className="text-cyan-300">*</code> <code className="text-cyan-300">/</code> <code className="text-cyan-300">^</code></li>
+                <li><i className="text-slate-500">(Tiếp tuyến tự động xuất hiện với hàm tường minh)</i></li>
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bottom hint */}
         <div className="absolute bottom-4 left-4 z-10 px-3 py-1.5 rounded-lg text-[11px] font-mono text-slate-500"
