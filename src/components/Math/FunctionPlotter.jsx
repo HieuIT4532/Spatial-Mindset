@@ -1,48 +1,24 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Mafs, Coordinates, Plot, Line, Point, Text } from 'mafs';
 import 'mafs/core.css';
 import 'mafs/font.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, X, Eye, EyeOff, Sparkles, Info, ChevronDown, ChevronUp
+  Plus, X, Eye, EyeOff, Sparkles, ChevronDown, ChevronUp, PanelLeftClose, GripVertical
 } from 'lucide-react';
 
 // =====================
 // Preset Gallery
 // =====================
 const PRESETS = [
-  {
-    label: 'Trái tim', icon: '❤️',
-    formulas: ['(x^2 + y^2 - 1)^3 - x^2 * y^3 = 0'],
-  },
-  {
-    label: 'Mặt cười', icon: '😊',
-    formulas: ['x^2 + y^2 - 25 = 0', '(x+2.5)^2 + (y-2)^2 - 0.5 = 0', '(x-2.5)^2 + (y-2)^2 - 0.5 = 0', 'y + 0.1*x^2 + 2 = 0'],
-  },
-  {
-    label: 'Vô cực', icon: '♾️',
-    formulas: ['(x^2 + y^2)^2 - 16*(x^2 - y^2) = 0'],
-  },
-  {
-    label: 'Hoa 4 cánh', icon: '🌸',
-    formulas: ['(x^2 + y^2)^3 - 16*x^2*y^2 = 0'],
-  },
-  {
-    label: 'Cánh bướm', icon: '🦋',
-    formulas: ['x^6 + y^6 - x^2 = 0'],
-  },
-  {
-    label: 'Sóng lượng tử', icon: '🌊',
-    formulas: ['sin(x) * exp(-0.1 * abs(x))', '-sin(x) * exp(-0.1 * abs(x))', 'exp(-0.1 * abs(x))', '-exp(-0.1 * abs(x))'],
-  },
-  {
-    label: 'Quả cầu 3D', icon: '🌐',
-    formulas: ['x^2 + y^2 - 25 = 0', 'x^2 + y^2/0.1 - 25 = 0', 'x^2 + y^2/0.3 - 25 = 0', 'x^2 + y^2/0.6 - 25 = 0', 'x^2/0.1 + y^2 - 25 = 0', 'x^2/0.3 + y^2 - 25 = 0', 'x^2/0.6 + y^2 - 25 = 0'],
-  },
-  {
-    label: 'Hoa Mandala', icon: '🏵️',
-    formulas: ['x^2 + y^2 - 16 = 0', '(x-4)^2 + y^2 - 16 = 0', '(x+4)^2 + y^2 - 16 = 0', 'x^2 + (y-4)^2 - 16 = 0', 'x^2 + (y+4)^2 - 16 = 0', '(x-2.83)^2 + (y-2.83)^2 - 16 = 0', '(x+2.83)^2 + (y-2.83)^2 - 16 = 0', '(x-2.83)^2 + (y+2.83)^2 - 16 = 0', '(x+2.83)^2 + (y+2.83)^2 - 16 = 0'],
-  },
+  { label: 'Trái tim', icon: '❤️', formulas: ['(x^2 + y^2 - 1)^3 - x^2 * y^3 = 0'] },
+  { label: 'Mặt cười', icon: '😊', formulas: ['x^2 + y^2 - 25 = 0', '(x+2.5)^2 + (y-2)^2 - 0.5 = 0', '(x-2.5)^2 + (y-2)^2 - 0.5 = 0', 'y + 0.1*x^2 + 2 = 0'] },
+  { label: 'Vô cực', icon: '♾️', formulas: ['(x^2 + y^2)^2 - 16*(x^2 - y^2) = 0'] },
+  { label: 'Hoa 4 cánh', icon: '🌸', formulas: ['(x^2 + y^2)^3 - 16*x^2*y^2 = 0'] },
+  { label: 'Cánh bướm', icon: '🦋', formulas: ['x^6 + y^6 - x^2 = 0'] },
+  { label: 'Sóng lượng tử', icon: '🌊', formulas: ['sin(x) * exp(-0.1 * abs(x))', '-sin(x) * exp(-0.1 * abs(x))', 'exp(-0.1 * abs(x))', '-exp(-0.1 * abs(x))'] },
+  { label: 'Quả cầu 3D', icon: '🌐', formulas: ['x^2 + y^2 - 25 = 0', 'x^2 + y^2/0.1 - 25 = 0', 'x^2 + y^2/0.3 - 25 = 0', 'x^2 + y^2/0.6 - 25 = 0', 'x^2/0.1 + y^2 - 25 = 0', 'x^2/0.3 + y^2 - 25 = 0', 'x^2/0.6 + y^2 - 25 = 0'] },
+  { label: 'Hoa Mandala', icon: '🏵️', formulas: ['x^2 + y^2 - 16 = 0', '(x-4)^2 + y^2 - 16 = 0', '(x+4)^2 + y^2 - 16 = 0', 'x^2 + (y-4)^2 - 16 = 0', 'x^2 + (y+4)^2 - 16 = 0', '(x-2.83)^2 + (y-2.83)^2 - 16 = 0', '(x+2.83)^2 + (y-2.83)^2 - 16 = 0', '(x-2.83)^2 + (y+2.83)^2 - 16 = 0', '(x+2.83)^2 + (y+2.83)^2 - 16 = 0'] },
 ];
 
 const EXPR_COLORS = ['#22d3ee', '#f97316', '#a78bfa', '#34d399', '#f43f5e', '#fbbf24', '#60a5fa', '#fb7185'];
@@ -65,18 +41,14 @@ function parseExpr(expr) {
     .replace(/___POW___/g, '**');
 }
 
-function isImplicit(formula) {
-  return formula.includes('=');
-}
+function isImplicit(formula) { return formula.includes('='); }
 
 function buildExplicitFn(formula) {
   try {
     const js = parseExpr(formula);
     // eslint-disable-next-line no-new-func
     return new Function('x', `try { const v = ${js}; return (isFinite(v) ? v : NaN); } catch(e) { return NaN; }`);
-  } catch {
-    return () => NaN;
-  }
+  } catch { return () => NaN; }
 }
 
 function buildImplicitFn(formula) {
@@ -85,15 +57,13 @@ function buildImplicitFn(formula) {
     const expr = `(${parseExpr(lhs)}) - (${parseExpr(rhs || '0')})`;
     // eslint-disable-next-line no-new-func
     return new Function('x', 'y', `try { const v = ${expr}; return (isFinite(v) ? v : NaN); } catch(e) { return NaN; }`);
-  } catch {
-    return () => NaN;
-  }
+  } catch { return () => NaN; }
 }
 
 // =====================
-// Marching Squares for Implicit Curves
+// Marching Squares — large domain for "infinite" feel
 // =====================
-function marchingSquares(fn, xRange, yRange, resolution = 180) {
+function marchingSquares(fn, xRange, yRange, resolution = 220) {
   const [xMin, xMax] = xRange;
   const [yMin, yMax] = yRange;
   const dx = (xMax - xMin) / resolution;
@@ -140,19 +110,17 @@ function marchingSquares(fn, xRange, yRange, resolution = 180) {
   return segments;
 }
 
-// =====================
 // Numerical Derivative
-// =====================
 function numericalDerivative(fn, x, h = 1e-6) {
   return (fn(x + h) - fn(x - h)) / (2 * h);
 }
 
 // =====================
-// Implicit Curve via Line.Segment
+// Implicit Curve Renderer
 // =====================
 function ImplicitCurve({ fn, color, xRange, yRange }) {
   const segments = useMemo(
-    () => marchingSquares(fn, xRange, yRange, 180),
+    () => marchingSquares(fn, xRange, yRange, 220),
     [fn, xRange, yRange]
   );
   return (
@@ -165,22 +133,18 @@ function ImplicitCurve({ fn, color, xRange, yRange }) {
 }
 
 // =====================
-// Tangent Line Component
+// Tangent Line
 // =====================
 function TangentLineVis({ fn, x0, color }) {
   const y0 = fn(x0);
   const slope = numericalDerivative(fn, x0);
   if (!isFinite(y0) || !isFinite(slope)) return null;
-
   const len = 4;
-  const p1 = [x0 - len, y0 - slope * len];
-  const p2 = [x0 + len, y0 + slope * len];
-
   return (
     <>
-      <Line.Segment point1={p1} point2={p2} color="#fbbf24" weight={2} opacity={0.7} />
+      <Line.Segment point1={[x0-len, y0-slope*len]} point2={[x0+len, y0+slope*len]} color="#fbbf24" weight={2} opacity={0.7} />
       <Point x={x0} y={y0} color={color} />
-      <Text x={x0 + 0.6} y={y0 + 0.9} attach="e" size={12} color="#fbbf24">
+      <Text x={x0+0.6} y={y0+0.9} attach="e" size={12} color="#fbbf24">
         {`y'(${x0.toFixed(1)}) ≈ ${slope.toFixed(3)}`}
       </Text>
     </>
@@ -188,19 +152,77 @@ function TangentLineVis({ fn, x0, color }) {
 }
 
 // =====================
+// Draggable Floating Panel
+// =====================
+function DraggablePanel({ children, defaultPos = { x: 16, y: 80 } }) {
+  const panelRef = useRef(null);
+  const [pos, setPos] = useState(defaultPos);
+  const [dragging, setDragging] = useState(false);
+  const offset = useRef({ x: 0, y: 0 });
+
+  const onMouseDown = useCallback((e) => {
+    if (!panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    offset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => {
+      setPos({ x: e.clientX - offset.current.x, y: e.clientY - offset.current.y });
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragging]);
+
+  return (
+    <div
+      ref={panelRef}
+      style={{
+        position: 'absolute',
+        left: pos.x,
+        top: pos.y,
+        zIndex: 50,
+        cursor: dragging ? 'grabbing' : 'default',
+        userSelect: 'none',
+      }}
+    >
+      {/* Drag Handle */}
+      <div
+        onMouseDown={onMouseDown}
+        style={{ cursor: 'grab', padding: '6px 0', display: 'flex', justifyContent: 'center' }}
+      >
+        <div className="w-8 h-1 rounded-full bg-white/20" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// =====================
+// LARGE implicit domain — makes the graph feel "infinite"
+// =====================
+const IMPLICIT_DOMAIN = [-50, 50];
+
+// =====================
 // Main Component
 // =====================
 export default function FunctionPlotter({
   expression = 'sin(x)',
   domain = [-10, 10],
-  color = '#22d3ee'
 }) {
   const [expressions, setExpressions] = useState([
     { id: '1', formula: expression, color: EXPR_COLORS[0], visible: true },
   ]);
   const [x0, setX0] = useState(0);
   const [showPresets, setShowPresets] = useState(false);
-  const [showGuide, setShowGuide] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const addExpression = () => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -237,175 +259,183 @@ export default function FunctionPlotter({
   const firstExplicit = fns.find(f => f.fn && !f.implicit && f.visible);
 
   return (
-    <div className="w-full h-full flex bg-[#0d1117] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-      {/* ─── LEFT SIDEBAR ─── */}
-      <div className="w-[340px] flex flex-col border-r border-white/10 bg-[#0d1117]/80 backdrop-blur-xl shrink-0">
-        {/* Header */}
-        <div className="p-5 border-b border-white/5">
-          <div className="flex items-center gap-2 text-cyan-400 mb-1">
-            <Sparkles size={18} />
-            <h2 className="font-black text-sm uppercase tracking-widest">Biểu thức</h2>
-          </div>
-          <p className="text-[11px] text-slate-500">Nhập các hàm số để vẽ đồ thị</p>
-        </div>
+    <div className="w-full h-full relative bg-[#0d1117] overflow-hidden">
+      {/* ─── FULL-SCREEN GRAPH (no viewBox restriction = infinite panning) ─── */}
+      <Mafs pan={true} zoom={true}>
+        <Coordinates.Cartesian subdivisions={2} />
 
-        {/* Expression List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-          {expressions.map((expr) => (
-            <div
-              key={expr.id}
-              className="rounded-xl p-3 transition-all"
-              style={{
-                background: expr.visible ? 'rgba(88,166,255,0.03)' : 'rgba(0,0,0,0.2)',
-                border: `1px solid ${expr.visible ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.05)'}`,
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => updateExpression(expr.id, { visible: !expr.visible })}
-                  className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all"
-                  style={{
-                    background: expr.visible ? expr.color : 'transparent',
-                    border: `2px solid ${expr.color}`,
-                  }}
-                >
-                  {expr.visible ? <Eye size={10} color="#000" /> : <EyeOff size={10} style={{ color: expr.color }} />}
-                </button>
-                <input
-                  type="text"
-                  value={expr.formula}
-                  onChange={e => updateExpression(expr.id, { formula: e.target.value })}
-                  placeholder="sin(x)  hoặc  x^2 + y^2 = 25"
-                  className="flex-1 bg-transparent border-none text-white text-sm font-mono outline-none placeholder:text-slate-600"
-                />
-                <button
-                  onClick={() => removeExpression(expr.id)}
-                  className="p-1 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+        {/* Render all expressions */}
+        {fns.map(e => {
+          if (!e.fn || !e.visible) return null;
+          if (e.implicit) {
+            return <ImplicitCurve key={e.id} fn={e.fn} color={e.color} xRange={IMPLICIT_DOMAIN} yRange={IMPLICIT_DOMAIN} />;
+          }
+          return (
+            <Plot.OfX
+              key={e.id}
+              y={(x) => { const v = e.fn(x); return isFinite(v) ? v : NaN; }}
+              color={e.color}
+              weight={2.5}
+            />
+          );
+        })}
 
-          <button
-            onClick={addExpression}
-            className="w-full py-3 rounded-xl border border-dashed border-white/15 text-slate-500 hover:text-cyan-400 hover:border-cyan-400/30 hover:bg-cyan-500/5 transition-all flex items-center justify-center gap-2 text-xs font-bold"
+        {/* Tangent line */}
+        {firstExplicit && <TangentLineVis fn={firstExplicit.fn} x0={x0} color={firstExplicit.color} />}
+      </Mafs>
+
+      {/* ─── FLOATING PANEL (collapsed = single icon) ─── */}
+      <AnimatePresence>
+        {!panelOpen && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            onClick={() => setPanelOpen(true)}
+            className="absolute top-20 left-4 z-50 w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl transition-all hover:scale-110"
+            style={{
+              background: 'rgba(13,17,23,0.85)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(34,211,238,0.3)',
+              boxShadow: '0 0 20px rgba(34,211,238,0.15)',
+            }}
+            title="Mở bảng biểu thức"
           >
-            <Plus size={16} /> Thêm biểu thức mới
-          </button>
-        </div>
+            <Sparkles size={20} className="text-cyan-400" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
-        {/* Presets */}
-        <div className="border-t border-white/5 bg-black/20">
-          <button
-            onClick={() => setShowPresets(!showPresets)}
-            className="w-full p-4 flex items-center justify-between text-slate-400 hover:text-white transition-all"
-          >
-            <span className="text-xs font-bold">✨ Khám phá ví dụ</span>
-            {showPresets ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          <AnimatePresence>
-            {showPresets && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-                  {PRESETS.map(p => (
-                    <button
-                      key={p.label}
-                      onClick={() => loadPreset(p)}
-                      className="p-2.5 rounded-xl text-left text-xs text-slate-300 hover:text-white flex items-center gap-2 transition-all bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/20"
-                    >
-                      <span>{p.icon}</span> {p.label}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Tangent Explorer */}
-        <div className="p-4 border-t border-white/5 bg-black/30">
-          <div className="text-xs text-slate-500 mb-2 font-semibold">Khám phá tiếp tuyến x₀</div>
-          <input
-            type="range"
-            min={domain[0]}
-            max={domain[1]}
-            step="0.1"
-            value={x0}
-            onChange={e => setX0(parseFloat(e.target.value))}
-            className="w-full accent-cyan-500"
-          />
-          <div className="text-right text-xs text-cyan-400 mt-1 font-mono">x₀ = {x0.toFixed(1)}</div>
-        </div>
-      </div>
-
-      {/* ─── GRAPH AREA ─── */}
-      <div className="flex-1 relative">
-        <Mafs pan={true} zoom={true} viewBox={{ x: domain, y: domain }}>
-          <Coordinates.Cartesian subdivisions={2} />
-
-          {/* Render all expressions */}
-          {fns.map(e => {
-            if (!e.fn || !e.visible) return null;
-            if (e.implicit) {
-              return <ImplicitCurve key={e.id} fn={e.fn} color={e.color} xRange={domain} yRange={domain} />;
-            }
-            return (
-              <Plot.OfX
-                key={e.id}
-                y={(x) => { const v = e.fn(x); return isFinite(v) ? v : NaN; }}
-                color={e.color}
-                weight={2.5}
-              />
-            );
-          })}
-
-          {/* Tangent line for first explicit function */}
-          {firstExplicit && <TangentLineVis fn={firstExplicit.fn} x0={x0} color={firstExplicit.color} />}
-        </Mafs>
-
-        {/* Syntax Guide Overlay */}
-        <AnimatePresence>
-          {showGuide && (
+      <AnimatePresence>
+        {panelOpen && (
+          <DraggablePanel defaultPos={{ x: 16, y: 70 }}>
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute top-4 right-4 z-10 max-w-[300px] rounded-xl p-4 text-xs pointer-events-auto"
+              initial={{ opacity: 0, scale: 0.9, x: -20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9, x: -20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="w-[320px] flex flex-col rounded-2xl overflow-hidden shadow-2xl max-h-[75vh]"
               style={{
-                background: 'rgba(13,17,23,0.75)',
-                backdropFilter: 'blur(12px)',
+                background: 'rgba(13,17,23,0.92)',
+                backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(34,211,238,0.15)',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 20px rgba(34,211,238,0.08)',
               }}
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-cyan-400 font-bold flex items-center gap-1.5">
-                  <Info size={14} /> Hướng dẫn cú pháp
-                </span>
-                <button onClick={() => setShowGuide(false)} className="text-slate-500 hover:text-white"><X size={12} /></button>
+              {/* Header */}
+              <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-cyan-400">
+                  <Sparkles size={16} />
+                  <span className="font-black text-xs uppercase tracking-widest">Biểu thức</span>
+                </div>
+                <button
+                  onClick={() => setPanelOpen(false)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all"
+                  title="Thu nhỏ"
+                >
+                  <PanelLeftClose size={14} />
+                </button>
               </div>
-              <ul className="text-slate-400 space-y-1.5 list-disc pl-4">
-                <li><b className="text-white">Hàm tường minh:</b> <code className="text-cyan-300">x^2</code>, <code className="text-cyan-300">sin(x)</code>, <code className="text-cyan-300">sqrt(x)</code></li>
-                <li><b className="text-white">Hàm ẩn:</b> <code className="text-cyan-300">x^2 + y^2 = 25</code></li>
-                <li><b className="text-white">Toán tử:</b> <code className="text-cyan-300">*</code> <code className="text-cyan-300">/</code> <code className="text-cyan-300">^</code></li>
-                <li><i className="text-slate-500">(Tiếp tuyến tự động xuất hiện với hàm tường minh)</i></li>
-              </ul>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* Bottom hint */}
-        <div className="absolute bottom-4 left-4 z-10 px-3 py-1.5 rounded-lg text-[11px] font-mono text-slate-500"
-          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.05)' }}>
-          🖱 Kéo: Di chuyển · 🔍 Cuộn: Zoom
-        </div>
-      </div>
+              {/* Expression List */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar" style={{ maxHeight: '280px' }}>
+                {expressions.map((expr) => (
+                  <div
+                    key={expr.id}
+                    className="rounded-xl p-2.5 transition-all"
+                    style={{
+                      background: expr.visible ? 'rgba(88,166,255,0.04)' : 'rgba(0,0,0,0.3)',
+                      border: `1px solid ${expr.visible ? 'rgba(88,166,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateExpression(expr.id, { visible: !expr.visible })}
+                        className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                        style={{
+                          background: expr.visible ? expr.color : 'transparent',
+                          border: `2px solid ${expr.color}`,
+                        }}
+                      >
+                        {expr.visible ? <Eye size={8} color="#000" /> : <EyeOff size={8} style={{ color: expr.color }} />}
+                      </button>
+                      <input
+                        type="text"
+                        value={expr.formula}
+                        onChange={e => updateExpression(expr.id, { formula: e.target.value })}
+                        placeholder="sin(x) hoặc x^2+y^2=25"
+                        className="flex-1 bg-transparent border-none text-white text-xs font-mono outline-none placeholder:text-slate-600"
+                      />
+                      <button
+                        onClick={() => removeExpression(expr.id)}
+                        className="p-0.5 rounded text-red-400/40 hover:text-red-400 transition-all"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={addExpression}
+                  className="w-full py-2 rounded-xl border border-dashed border-white/10 text-slate-500 hover:text-cyan-400 hover:border-cyan-400/30 hover:bg-cyan-500/5 transition-all flex items-center justify-center gap-1.5 text-[10px] font-bold"
+                >
+                  <Plus size={12} /> Thêm biểu thức mới
+                </button>
+              </div>
+
+              {/* Presets */}
+              <div className="border-t border-white/5">
+                <button
+                  onClick={() => setShowPresets(!showPresets)}
+                  className="w-full px-4 py-2.5 flex items-center justify-between text-slate-400 hover:text-white transition-all text-[10px] font-bold"
+                >
+                  ✨ Khám phá ví dụ
+                  {showPresets ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+                <AnimatePresence>
+                  {showPresets && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-2 gap-1.5 px-3 pb-3">
+                        {PRESETS.map(p => (
+                          <button
+                            key={p.label}
+                            onClick={() => loadPreset(p)}
+                            className="p-2 rounded-lg text-left text-[10px] text-slate-300 hover:text-white flex items-center gap-1.5 transition-all bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/20"
+                          >
+                            <span className="text-sm">{p.icon}</span> {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Tangent Explorer */}
+              <div className="p-3 border-t border-white/5 bg-black/20">
+                <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">Tiếp tuyến x₀</div>
+                <input
+                  type="range"
+                  min="-10"
+                  max="10"
+                  step="0.1"
+                  value={x0}
+                  onChange={e => setX0(parseFloat(e.target.value))}
+                  className="w-full accent-cyan-500"
+                  style={{ height: '4px' }}
+                />
+                <div className="text-right text-[10px] text-cyan-400 mt-0.5 font-mono">x₀ = {x0.toFixed(1)}</div>
+              </div>
+            </motion.div>
+          </DraggablePanel>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
