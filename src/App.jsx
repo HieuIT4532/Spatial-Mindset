@@ -949,7 +949,7 @@ export default function App() {
 
         {/* Views based on activeMode */}
         {activeMode === 'GRAPH' ? (
-          <div className="absolute inset-0 z-10 p-12 flex items-center justify-center">
+          <div className="absolute inset-0 z-10">
             {geometryData?.type === '2D' ? (
               <Graph2DViewer functions={geometryData.functions} />
             ) : (
