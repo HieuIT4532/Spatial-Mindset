@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { Mafs, Coordinates, Plot, Line, Point, Text } from 'mafs';
+import React, { useState, useMemo } from 'react';
+import { Mafs, Coordinates, Plot, Theme } from 'mafs';
 import 'mafs/core.css';
 import 'mafs/font.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,38 +11,14 @@ import {
 // Preset Gallery
 // =====================
 const PRESETS = [
-  {
-    label: 'Trái tim', icon: '❤️',
-    formulas: ['(x^2 + y^2 - 1)^3 - x^2 * y^3 = 0'],
-  },
-  {
-    label: 'Mặt cười', icon: '😊',
-    formulas: ['x^2 + y^2 - 25 = 0', '(x+2.5)^2 + (y-2)^2 - 0.5 = 0', '(x-2.5)^2 + (y-2)^2 - 0.5 = 0', 'y + 0.1*x^2 + 2 = 0'],
-  },
-  {
-    label: 'Vô cực', icon: '♾️',
-    formulas: ['(x^2 + y^2)^2 - 16*(x^2 - y^2) = 0'],
-  },
-  {
-    label: 'Hoa 4 cánh', icon: '🌸',
-    formulas: ['(x^2 + y^2)^3 - 16*x^2*y^2 = 0'],
-  },
-  {
-    label: 'Cánh bướm', icon: '🦋',
-    formulas: ['x^6 + y^6 - x^2 = 0'],
-  },
-  {
-    label: 'Sóng lượng tử', icon: '🌊',
-    formulas: ['sin(x) * exp(-0.1 * abs(x))', '-sin(x) * exp(-0.1 * abs(x))', 'exp(-0.1 * abs(x))', '-exp(-0.1 * abs(x))'],
-  },
-  {
-    label: 'Quả cầu 3D', icon: '🌐',
-    formulas: ['x^2 + y^2 - 25 = 0', 'x^2 + y^2/0.1 - 25 = 0', 'x^2 + y^2/0.3 - 25 = 0', 'x^2 + y^2/0.6 - 25 = 0', 'x^2/0.1 + y^2 - 25 = 0', 'x^2/0.3 + y^2 - 25 = 0', 'x^2/0.6 + y^2 - 25 = 0'],
-  },
-  {
-    label: 'Hoa Mandala', icon: '🏵️',
-    formulas: ['x^2 + y^2 - 16 = 0', '(x-4)^2 + y^2 - 16 = 0', '(x+4)^2 + y^2 - 16 = 0', 'x^2 + (y-4)^2 - 16 = 0', 'x^2 + (y+4)^2 - 16 = 0', '(x-2.83)^2 + (y-2.83)^2 - 16 = 0', '(x+2.83)^2 + (y-2.83)^2 - 16 = 0', '(x-2.83)^2 + (y+2.83)^2 - 16 = 0', '(x+2.83)^2 + (y+2.83)^2 - 16 = 0'],
-  },
+  { label: 'Trái tim', icon: '❤️', formulas: ['(x^2 + y^2 - 1)^3 - x^2 * y^3 = 0'] },
+  { label: 'Sóng lượng tử', icon: '🌊', formulas: ['sin(x) * exp(-0.1 * abs(x))', '-sin(x) * exp(-0.1 * abs(x))', 'exp(-0.1 * abs(x))', '-exp(-0.1 * abs(x))'] },
+  { label: 'Parabol', icon: '📐', formulas: ['x^2'] },
+  { label: 'Sin & Cos', icon: '〰️', formulas: ['sin(x)', 'cos(x)'] },
+  { label: 'Hàm bậc 3', icon: '📊', formulas: ['x^3 - 3*x'] },
+  { label: 'Tan(x)', icon: '📈', formulas: ['tan(x)'] },
+  { label: 'Exp & Log', icon: '🔢', formulas: ['exp(x/3)', 'log(x)'] },
+  { label: '1/x', icon: '♾️', formulas: ['1/x'] },
 ];
 
 const EXPR_COLORS = ['#22d3ee', '#f97316', '#a78bfa', '#34d399', '#f43f5e', '#fbbf24', '#60a5fa', '#fb7185'];
@@ -73,173 +49,110 @@ function buildExplicitFn(formula) {
   try {
     const js = parseExpr(formula);
     // eslint-disable-next-line no-new-func
-    return new Function('x', `try { const v = ${js}; return (isFinite(v) ? v : NaN); } catch(e) { return NaN; }`);
-  } catch {
-    return () => NaN;
+    return new Function('x', `try { var v = ${js}; return (isFinite(v) ? v : NaN); } catch(e) { return NaN; }`);
+  } catch (err) {
+    return function() { return NaN; };
   }
 }
 
-function buildImplicitFn(formula) {
-  try {
-    const [lhs, rhs] = formula.split('=').map(s => s.trim());
-    const expr = `(${parseExpr(lhs)}) - (${parseExpr(rhs || '0')})`;
-    // eslint-disable-next-line no-new-func
-    return new Function('x', 'y', `try { const v = ${expr}; return (isFinite(v) ? v : NaN); } catch(e) { return NaN; }`);
-  } catch {
-    return () => NaN;
-  }
+function numericalDerivative(fn, xVal, h) {
+  if (!h) h = 1e-6;
+  return (fn(xVal + h) - fn(xVal - h)) / (2 * h);
 }
 
 // =====================
-// Marching Squares for Implicit Curves
-// =====================
-function marchingSquares(fn, xRange, yRange, resolution = 180) {
-  const [xMin, xMax] = xRange;
-  const [yMin, yMax] = yRange;
-  const dx = (xMax - xMin) / resolution;
-  const dy = (yMax - yMin) / resolution;
-  const segments = [];
-
-  const grid = [];
-  for (let i = 0; i <= resolution; i++) {
-    grid[i] = [];
-    for (let j = 0; j <= resolution; j++) {
-      grid[i][j] = fn(xMin + i * dx, yMin + j * dy);
-    }
-  }
-
-  for (let i = 0; i < resolution; i++) {
-    for (let j = 0; j < resolution; j++) {
-      const x = xMin + i * dx;
-      const y = yMin + j * dy;
-      const v00 = grid[i][j], v10 = grid[i+1][j], v01 = grid[i][j+1], v11 = grid[i+1][j+1];
-      if (isNaN(v00) || isNaN(v10) || isNaN(v01) || isNaN(v11)) continue;
-
-      const idx = (v00 > 0 ? 8 : 0) | (v10 > 0 ? 4 : 0) | (v11 > 0 ? 2 : 0) | (v01 > 0 ? 1 : 0);
-      if (idx === 0 || idx === 15) continue;
-
-      const lerp = (a, b, va, vb) => a + (b - a) * (-va) / (vb - va);
-      const top    = [lerp(x, x+dx, v00, v10), y];
-      const bottom = [lerp(x, x+dx, v01, v11), y+dy];
-      const left   = [x, lerp(y, y+dy, v00, v01)];
-      const right  = [x+dx, lerp(y, y+dy, v10, v11)];
-
-      const add = (a, b) => segments.push([a, b]);
-      switch (idx) {
-        case 1: case 14: add(left, bottom); break;
-        case 2: case 13: add(bottom, right); break;
-        case 3: case 12: add(left, right); break;
-        case 4: case 11: add(top, right); break;
-        case 5: add(left, top); add(bottom, right); break;
-        case 6: case 9: add(top, bottom); break;
-        case 7: case 8: add(left, top); break;
-        case 10: add(top, right); add(left, bottom); break;
-      }
-    }
-  }
-  return segments;
-}
-
-// =====================
-// Numerical Derivative
-// =====================
-function numericalDerivative(fn, x, h = 1e-6) {
-  return (fn(x + h) - fn(x - h)) / (2 * h);
-}
-
-// =====================
-// Implicit Curve via Line.Segment
-// =====================
-function ImplicitCurve({ fn, color, xRange, yRange }) {
-  const segments = useMemo(
-    () => marchingSquares(fn, xRange, yRange, 180),
-    [fn, xRange, yRange]
-  );
-  return (
-    <>
-      {segments.map(([a, b], i) => (
-        <Line.Segment key={i} point1={a} point2={b} color={color} weight={2} />
-      ))}
-    </>
-  );
-}
-
-// =====================
-// Tangent Line Component
-// =====================
-function TangentLineVis({ fn, x0, color }) {
-  const y0 = fn(x0);
-  const slope = numericalDerivative(fn, x0);
-  if (!isFinite(y0) || !isFinite(slope)) return null;
-
-  const len = 4;
-  const p1 = [x0 - len, y0 - slope * len];
-  const p2 = [x0 + len, y0 + slope * len];
-
-  return (
-    <>
-      <Line.Segment point1={p1} point2={p2} color="#fbbf24" weight={2} opacity={0.7} />
-      <Point x={x0} y={y0} color={color} />
-      <Text x={x0 + 0.6} y={y0 + 0.9} attach="e" size={12} color="#fbbf24">
-        {`y'(${x0.toFixed(1)}) ≈ ${slope.toFixed(3)}`}
-      </Text>
-    </>
-  );
-}
-
-// =====================
-// Main Component
+// Main Component - uses ONLY Plot.OfX from Mafs (safe)
 // =====================
 export default function FunctionPlotter({
-  expression = 'sin(x)',
-  domain = [-10, 10],
-  color = '#22d3ee'
+  expression,
+  domain,
+  color
 }) {
-  const [expressions, setExpressions] = useState([
-    { id: '1', formula: expression, color: EXPR_COLORS[0], visible: true },
-  ]);
-  const [x0, setX0] = useState(0);
-  const [showPresets, setShowPresets] = useState(false);
-  const [showGuide, setShowGuide] = useState(true);
+  if (!expression) expression = 'sin(x)';
+  if (!domain) domain = [-10, 10];
+  if (!color) color = '#22d3ee';
 
-  const addExpression = () => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const ci = expressions.length % EXPR_COLORS.length;
-    setExpressions(prev => [...prev, { id, formula: '', color: EXPR_COLORS[ci], visible: true }]);
+  var initExprs = [{ id: '1', formula: expression, color: EXPR_COLORS[0], visible: true }];
+
+  var _exprState = useState(initExprs);
+  var expressions = _exprState[0];
+  var setExpressions = _exprState[1];
+
+  var _x0State = useState(0);
+  var x0Val = _x0State[0];
+  var setX0Val = _x0State[1];
+
+  var _presetsState = useState(false);
+  var showPresets = _presetsState[0];
+  var setShowPresets = _presetsState[1];
+
+  var _guideState = useState(true);
+  var showGuide = _guideState[0];
+  var setShowGuide = _guideState[1];
+
+  var addExpression = function() {
+    var id = Math.random().toString(36).substr(2, 9);
+    var ci = expressions.length % EXPR_COLORS.length;
+    setExpressions(function(prev) {
+      return prev.concat([{ id: id, formula: '', color: EXPR_COLORS[ci], visible: true }]);
+    });
   };
 
-  const removeExpression = (id) => setExpressions(prev => prev.filter(e => e.id !== id));
-  const updateExpression = (id, updates) => setExpressions(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+  var removeExpression = function(id) {
+    setExpressions(function(prev) { return prev.filter(function(e) { return e.id !== id; }); });
+  };
 
-  const loadPreset = (preset) => {
-    setExpressions(preset.formulas.map((f, i) => ({
-      id: Math.random().toString(36).substr(2, 9),
-      formula: f,
-      color: EXPR_COLORS[i % EXPR_COLORS.length],
-      visible: true,
-    })));
+  var updateExpression = function(id, updates) {
+    setExpressions(function(prev) {
+      return prev.map(function(e) { return e.id === id ? Object.assign({}, e, updates) : e; });
+    });
+  };
+
+  var loadPreset = function(preset) {
+    var newExprs = preset.formulas.map(function(f, i) {
+      return {
+        id: Math.random().toString(36).substr(2, 9),
+        formula: f,
+        color: EXPR_COLORS[i % EXPR_COLORS.length],
+        visible: true,
+      };
+    });
+    setExpressions(newExprs);
     setShowPresets(false);
   };
 
-  // Build functions
-  const fns = useMemo(() => {
-    return expressions.map(e => {
-      if (!e.formula.trim()) return { ...e, fn: null, implicit: false };
-      const impl = isImplicit(e.formula);
-      return {
-        ...e,
-        fn: impl ? buildImplicitFn(e.formula) : buildExplicitFn(e.formula),
-        implicit: impl,
-      };
+  // Build functions - only explicit (Plot.OfX supported)
+  var fns = useMemo(function() {
+    return expressions.map(function(e) {
+      if (!e.formula || !e.formula.trim()) return Object.assign({}, e, { fn: null, implicit: false });
+      var impl = isImplicit(e.formula);
+      if (impl) {
+        // Skip implicit equations for now - they crash Line.Segment
+        return Object.assign({}, e, { fn: null, implicit: true });
+      }
+      return Object.assign({}, e, { fn: buildExplicitFn(e.formula), implicit: false });
     });
   }, [expressions]);
 
-  const firstExplicit = fns.find(f => f.fn && !f.implicit && f.visible);
+  // First explicit fn for tangent
+  var firstExplicit = fns.find(function(f) { return f.fn && !f.implicit && f.visible; });
+
+  // Tangent line as explicit function
+  var tangentFn = useMemo(function() {
+    if (!firstExplicit || !firstExplicit.fn) return null;
+    var fn = firstExplicit.fn;
+    var y0 = fn(x0Val);
+    var slope = numericalDerivative(fn, x0Val);
+    if (!isFinite(y0) || !isFinite(slope)) return null;
+    return function(x) { return y0 + slope * (x - x0Val); };
+  }, [firstExplicit, x0Val]);
+
+  var tangentSlope = firstExplicit && firstExplicit.fn ? numericalDerivative(firstExplicit.fn, x0Val) : null;
 
   return (
     <div className="w-full h-full flex bg-[#0d1117] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-      {/* ─── LEFT SIDEBAR ─── */}
-      <div className="w-[340px] flex flex-col border-r border-white/10 bg-[#0d1117]/80 backdrop-blur-xl shrink-0">
+      {/* LEFT SIDEBAR */}
+      <div className="w-[320px] flex flex-col border-r border-white/10 bg-[#0d1117]/80 backdrop-blur-xl shrink-0">
         {/* Header */}
         <div className="p-5 border-b border-white/5">
           <div className="flex items-center gap-2 text-cyan-400 mb-1">
@@ -251,42 +164,44 @@ export default function FunctionPlotter({
 
         {/* Expression List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-          {expressions.map((expr) => (
-            <div
-              key={expr.id}
-              className="rounded-xl p-3 transition-all"
-              style={{
-                background: expr.visible ? 'rgba(88,166,255,0.03)' : 'rgba(0,0,0,0.2)',
-                border: `1px solid ${expr.visible ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.05)'}`,
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => updateExpression(expr.id, { visible: !expr.visible })}
-                  className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all"
-                  style={{
-                    background: expr.visible ? expr.color : 'transparent',
-                    border: `2px solid ${expr.color}`,
-                  }}
-                >
-                  {expr.visible ? <Eye size={10} color="#000" /> : <EyeOff size={10} style={{ color: expr.color }} />}
-                </button>
-                <input
-                  type="text"
-                  value={expr.formula}
-                  onChange={e => updateExpression(expr.id, { formula: e.target.value })}
-                  placeholder="sin(x)  hoặc  x^2 + y^2 = 25"
-                  className="flex-1 bg-transparent border-none text-white text-sm font-mono outline-none placeholder:text-slate-600"
-                />
-                <button
-                  onClick={() => removeExpression(expr.id)}
-                  className="p-1 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all"
-                >
-                  <X size={14} />
-                </button>
+          {expressions.map(function(expr) {
+            return (
+              <div
+                key={expr.id}
+                className="rounded-xl p-3 transition-all"
+                style={{
+                  background: expr.visible ? 'rgba(88,166,255,0.03)' : 'rgba(0,0,0,0.2)',
+                  border: '1px solid ' + (expr.visible ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.05)'),
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={function() { updateExpression(expr.id, { visible: !expr.visible }); }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all"
+                    style={{
+                      background: expr.visible ? expr.color : 'transparent',
+                      border: '2px solid ' + expr.color,
+                    }}
+                  >
+                    {expr.visible ? <Eye size={10} color="#000" /> : <EyeOff size={10} style={{ color: expr.color }} />}
+                  </button>
+                  <input
+                    type="text"
+                    value={expr.formula}
+                    onChange={function(e) { updateExpression(expr.id, { formula: e.target.value }); }}
+                    placeholder="sin(x), x^2, ..."
+                    className="flex-1 bg-transparent border-none text-white text-sm font-mono outline-none placeholder:text-slate-600"
+                  />
+                  <button
+                    onClick={function() { removeExpression(expr.id); }}
+                    className="p-1 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-400 transition-all"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <button
             onClick={addExpression}
@@ -299,7 +214,7 @@ export default function FunctionPlotter({
         {/* Presets */}
         <div className="border-t border-white/5 bg-black/20">
           <button
-            onClick={() => setShowPresets(!showPresets)}
+            onClick={function() { setShowPresets(!showPresets); }}
             className="w-full p-4 flex items-center justify-between text-slate-400 hover:text-white transition-all"
           >
             <span className="text-xs font-bold">✨ Khám phá ví dụ</span>
@@ -314,15 +229,17 @@ export default function FunctionPlotter({
                 className="overflow-hidden"
               >
                 <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-                  {PRESETS.map(p => (
-                    <button
-                      key={p.label}
-                      onClick={() => loadPreset(p)}
-                      className="p-2.5 rounded-xl text-left text-xs text-slate-300 hover:text-white flex items-center gap-2 transition-all bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/20"
-                    >
-                      <span>{p.icon}</span> {p.label}
-                    </button>
-                  ))}
+                  {PRESETS.map(function(p) {
+                    return (
+                      <button
+                        key={p.label}
+                        onClick={function() { loadPreset(p); }}
+                        className="p-2.5 rounded-xl text-left text-xs text-slate-300 hover:text-white flex items-center gap-2 transition-all bg-white/[0.02] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/20"
+                      >
+                        <span>{p.icon}</span> {p.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -337,37 +254,53 @@ export default function FunctionPlotter({
             min={domain[0]}
             max={domain[1]}
             step="0.1"
-            value={x0}
-            onChange={e => setX0(parseFloat(e.target.value))}
+            value={x0Val}
+            onChange={function(e) { setX0Val(parseFloat(e.target.value)); }}
             className="w-full accent-cyan-500"
           />
-          <div className="text-right text-xs text-cyan-400 mt-1 font-mono">x₀ = {x0.toFixed(1)}</div>
+          <div className="flex justify-between text-xs mt-1 font-mono">
+            <span className="text-cyan-400">x₀ = {x0Val.toFixed(1)}</span>
+            {tangentSlope != null && isFinite(tangentSlope) && (
+              <span className="text-yellow-400">y' ≈ {tangentSlope.toFixed(3)}</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ─── GRAPH AREA ─── */}
+      {/* GRAPH AREA */}
       <div className="flex-1 relative">
         <Mafs pan={true} zoom={true} viewBox={{ x: domain, y: domain }}>
           <Coordinates.Cartesian subdivisions={2} />
 
-          {/* Render all expressions */}
-          {fns.map(e => {
-            if (!e.fn || !e.visible) return null;
-            if (e.implicit) {
-              return <ImplicitCurve key={e.id} fn={e.fn} color={e.color} xRange={domain} yRange={domain} />;
-            }
+          {/* Render explicit expressions via Plot.OfX */}
+          {fns.map(function(e) {
+            if (!e.fn || !e.visible || e.implicit) return null;
             return (
               <Plot.OfX
                 key={e.id}
-                y={(x) => { const v = e.fn(x); return isFinite(v) ? v : NaN; }}
+                y={function(x) {
+                  try {
+                    var v = e.fn(x);
+                    return isFinite(v) ? v : NaN;
+                  } catch (err) {
+                    return NaN;
+                  }
+                }}
                 color={e.color}
                 weight={2.5}
               />
             );
           })}
 
-          {/* Tangent line for first explicit function */}
-          {firstExplicit && <TangentLineVis fn={firstExplicit.fn} x0={x0} color={firstExplicit.color} />}
+          {/* Tangent line as Plot.OfX */}
+          {tangentFn && (
+            <Plot.OfX
+              y={tangentFn}
+              color="#fbbf24"
+              weight={1.5}
+              style="dashed"
+            />
+          )}
         </Mafs>
 
         {/* Syntax Guide Overlay */}
@@ -377,7 +310,7 @@ export default function FunctionPlotter({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="absolute top-4 right-4 z-10 max-w-[300px] rounded-xl p-4 text-xs pointer-events-auto"
+              className="absolute top-4 right-4 z-10 max-w-[280px] rounded-xl p-4 text-xs pointer-events-auto"
               style={{
                 background: 'rgba(13,17,23,0.75)',
                 backdropFilter: 'blur(12px)',
@@ -388,13 +321,12 @@ export default function FunctionPlotter({
                 <span className="text-cyan-400 font-bold flex items-center gap-1.5">
                   <Info size={14} /> Hướng dẫn cú pháp
                 </span>
-                <button onClick={() => setShowGuide(false)} className="text-slate-500 hover:text-white"><X size={12} /></button>
+                <button onClick={function() { setShowGuide(false); }} className="text-slate-500 hover:text-white"><X size={12} /></button>
               </div>
-              <ul className="text-slate-400 space-y-1.5 list-disc pl-4">
-                <li><b className="text-white">Hàm tường minh:</b> <code className="text-cyan-300">x^2</code>, <code className="text-cyan-300">sin(x)</code>, <code className="text-cyan-300">sqrt(x)</code></li>
-                <li><b className="text-white">Hàm ẩn:</b> <code className="text-cyan-300">x^2 + y^2 = 25</code></li>
+              <ul className="text-slate-400 space-y-1 list-disc pl-4">
+                <li><b className="text-white">Hàm số:</b> <code className="text-cyan-300">x^2</code>, <code className="text-cyan-300">sin(x)</code>, <code className="text-cyan-300">sqrt(x)</code></li>
                 <li><b className="text-white">Toán tử:</b> <code className="text-cyan-300">*</code> <code className="text-cyan-300">/</code> <code className="text-cyan-300">^</code></li>
-                <li><i className="text-slate-500">(Tiếp tuyến tự động xuất hiện với hàm tường minh)</i></li>
+                <li><i className="text-slate-500">Tiếp tuyến tự động hiện khi kéo slider</i></li>
               </ul>
             </motion.div>
           )}

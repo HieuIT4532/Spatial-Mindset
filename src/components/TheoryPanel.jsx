@@ -1,30 +1,21 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, X, ChevronRight, BookText } from 'lucide-react';
+import { BookOpen, X, ChevronRight, BookText, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-
-const THEORIES = [
-  {
-    id: 1,
-    title: 'Thể tích khối chóp',
-    content: 'Thể tích của một khối chóp được tính bằng 1/3 diện tích mặt đáy nhân với chiều cao của khối chóp.\n\n$$V = \\frac{1}{3} B h$$\n\nTrong đó $B$ là diện tích đáy, $h$ là chiều cao.'
-  },
-  {
-    id: 2,
-    title: 'Góc giữa đường thẳng và mặt phẳng',
-    content: 'Góc giữa đường thẳng $d$ không vuông góc với mặt phẳng $(P)$ là góc giữa $d$ và hình chiếu vuông góc $d\'$ của nó trên $(P)$.\n\nNếu $d \\perp (P)$ thì góc bằng $90^\\circ$.'
-  },
-  {
-    id: 3,
-    title: 'Khoảng cách từ điểm đến mặt phẳng',
-    content: 'Khoảng cách từ điểm $M(x_0, y_0, z_0)$ đến mặt phẳng $(P): Ax + By + Cz + D = 0$ được tính bằng công thức:\n\n$$d(M, P) = \\frac{|A x_0 + B y_0 + C z_0 + D|}{\\sqrt{A^2 + B^2 + C^2}}$$'
-  }
-];
+import { THEORY_CHAPTERS, CATEGORIES } from '../data/theoryData';
 
 export default function TheoryPanel({ isOpen, onClose }) {
-  const [activeTheory, setActiveTheory] = useState(THEORIES[0]);
+  const [activeTheory, setActiveTheory] = useState(THEORY_CHAPTERS[0]);
+  const [filterCat, setFilterCat] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const filtered = THEORY_CHAPTERS.filter(t => {
+    if (filterCat !== 'all' && t.category !== filterCat) return false;
+    if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <AnimatePresence>
@@ -42,7 +33,7 @@ export default function TheoryPanel({ isOpen, onClose }) {
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.85, y: 40, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-4xl h-[70vh] rounded-[32px] overflow-hidden flex flex-col md:flex-row"
+            className="relative w-full max-w-5xl h-[80vh] rounded-[32px] overflow-hidden flex flex-col md:flex-row"
             style={{
               background: 'linear-gradient(135deg, rgba(2,6,23,0.95) 0%, rgba(15,23,42,0.95) 100%)',
               border: '1px solid rgba(34,211,238,0.2)',
@@ -50,56 +41,129 @@ export default function TheoryPanel({ isOpen, onClose }) {
             }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Sidebar List */}
-            <div className="w-full md:w-1/3 border-r border-white/10 flex flex-col bg-black/20">
-              <div className="p-6 border-b border-white/5 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
-                  <BookOpen size={20} className="text-cyan-400" />
+            {/* Sidebar */}
+            <div className="w-full md:w-[300px] border-r border-white/10 flex flex-col bg-black/20 shrink-0">
+              <div className="p-5 border-b border-white/5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
+                    <BookOpen size={20} className="text-cyan-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-white font-black uppercase tracking-widest text-sm">Cẩm nang</h2>
+                    <p className="text-[10px] text-cyan-400/70 font-bold uppercase tracking-[0.15em]">100 Ngày Phá Kén</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-white font-black uppercase tracking-widest text-sm">Cẩm nang</h2>
-                  <p className="text-[10px] text-cyan-400/70 font-bold uppercase tracking-[0.2em]">Lý thuyết không gian</p>
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Tìm chủ đề..."
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white outline-none placeholder:text-slate-600 focus:border-cyan-500/30"
+                  />
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {THEORIES.map(t => (
+
+              {/* Category filter */}
+              <div className="px-4 py-2 flex gap-1.5 flex-wrap border-b border-white/5">
+                <button
+                  onClick={() => setFilterCat('all')}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${filterCat === 'all' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'}`}
+                >Tất cả</button>
+                {CATEGORIES.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setFilterCat(c)}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${filterCat === c ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'}`}
+                  >{c}</button>
+                ))}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar">
+                {filtered.map(t => (
                   <button
                     key={t.id}
                     onClick={() => setActiveTheory(t)}
-                    className={`w-full text-left p-4 rounded-2xl transition-all flex items-center justify-between group ${
-                      activeTheory.id === t.id 
-                        ? 'bg-cyan-500/20 border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]' 
-                        : 'bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10'
+                    className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 group ${
+                      activeTheory.id === t.id
+                        ? 'bg-cyan-500/15 border border-cyan-500/30'
+                        : 'bg-white/[0.02] border border-transparent hover:bg-white/5 hover:border-white/10'
                     }`}
                   >
-                    <span className={`text-xs font-bold ${activeTheory.id === t.id ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}`}>
-                      {t.title}
-                    </span>
-                    <ChevronRight size={14} className={activeTheory.id === t.id ? 'text-cyan-400' : 'text-slate-500'} />
+                    <span className="text-lg">{t.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-[11px] font-bold block truncate ${activeTheory.id === t.id ? 'text-cyan-300' : 'text-slate-300'}`}>
+                        {t.title}
+                      </span>
+                      <span className="text-[9px] text-slate-500">{t.source} · {t.exercises.length} bài tập</span>
+                    </div>
+                    <ChevronRight size={12} className={activeTheory.id === t.id ? 'text-cyan-400' : 'text-slate-600'} />
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 flex flex-col relative bg-gradient-to-br from-transparent to-cyan-900/10">
-              <button
-                onClick={onClose}
-                className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all z-10"
-              >
+            {/* Content */}
+            <div className="flex-1 flex flex-col relative bg-gradient-to-br from-transparent to-cyan-900/5">
+              <button onClick={onClose} className="absolute top-5 right-5 p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all z-10">
                 <X size={16} />
               </button>
-              
-              <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-                <div className="flex items-center gap-3 mb-6">
-                  <BookText size={24} className="text-cyan-400" />
-                  <h3 className="text-2xl font-black text-white">{activeTheory.title}</h3>
+
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="text-2xl">{activeTheory.icon}</span>
+                  <div>
+                    <h3 className="text-xl font-black text-white">{activeTheory.title}</h3>
+                    <p className="text-[10px] text-cyan-400/60 font-bold uppercase tracking-widest">{activeTheory.source} · {activeTheory.category}</p>
+                  </div>
                 </div>
-                <div className="prose prose-invert prose-cyan max-w-none text-slate-300 text-sm leading-relaxed markdown-content">
+                <div className="mt-6 prose prose-invert prose-cyan max-w-none text-slate-300 text-sm leading-relaxed prose-headings:text-white prose-strong:text-cyan-300 prose-code:text-cyan-400 prose-code:bg-cyan-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {activeTheory.content}
                   </ReactMarkdown>
                 </div>
+
+                {/* Exercises section */}
+                {activeTheory.exercises.length > 0 && (
+                  <div className="mt-8 pt-6 border-t border-white/10">
+                    <h4 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <BookText size={16} className="text-cyan-400" /> Bài tập áp dụng ({activeTheory.exercises.length})
+                    </h4>
+                    <div className="space-y-3">
+                      {activeTheory.exercises.map((ex, i) => (
+                        <div key={ex.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-cyan-500/20 transition-all">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400">Câu {i+1}</span>
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                              ex.difficulty === 'easy' ? 'text-emerald-400 bg-emerald-500/10' :
+                              ex.difficulty === 'medium' ? 'text-yellow-400 bg-yellow-500/10' :
+                              'text-red-400 bg-red-500/10'
+                            }`}>{ex.difficulty === 'easy' ? 'Dễ' : ex.difficulty === 'medium' ? 'Vừa' : 'Khó'}</span>
+                            <span className="text-[9px] text-yellow-400/70 font-bold">+{ex.xp} XP</span>
+                            <span className="text-[9px] text-slate-600 ml-auto">{ex.source}</span>
+                          </div>
+                          <div className="text-xs text-slate-200 leading-relaxed">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {ex.problem}
+                            </ReactMarkdown>
+                          </div>
+                          {ex.options && (
+                            <div className="grid grid-cols-2 gap-1.5 mt-3">
+                              {ex.options.map((opt, oi) => (
+                                <div key={oi} className="px-3 py-1.5 rounded-lg bg-black/20 border border-white/5 text-[11px] text-slate-300">
+                                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                    {`**${String.fromCharCode(65+oi)}.** ${opt}`}
+                                  </ReactMarkdown>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

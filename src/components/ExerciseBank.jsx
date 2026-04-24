@@ -1,34 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Layers, Search, ChevronRight, Trophy, Flame } from 'lucide-react';
-import axios from 'axios';
+import { X, Layers, ChevronRight, Trophy, Flame, Search, Filter } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { ALL_EXERCISES, CATEGORIES } from '../data/theoryData';
 
 const DIFF_LABEL = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' };
 const DIFF_COLOR = {
-  easy:   { text: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.2)'  },
-  medium: { text: '#fbbf24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.2)'  },
+  easy:   { text: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.2)' },
+  medium: { text: '#fbbf24', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.2)' },
   hard:   { text: '#f87171', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.2)' },
 };
 
 export default function ExerciseBank({ isOpen, onClose, onSelectChallenge }) {
-  const [challenges, setChallenges] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [catFilter, setCatFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    // We can fetch from a new endpoint /api/exercises or just reuse daily-challenge for now
-    const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
-    axios.get(`${baseUrl}/api/daily-challenge`)
-      .then(res => {
-        // Just mock a larger bank by multiplying the daily challenges for demonstration
-        const base = res.data.challenges || [];
-        setChallenges([...base, ...base.map(c => ({...c, id: c.id+100, title: c.title + ' (Nâng cao)'}))]);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const filtered = filter === 'all' ? challenges : challenges.filter(c => c.difficulty === filter);
+  const filtered = useMemo(() => {
+    return ALL_EXERCISES.filter(c => {
+      if (filter !== 'all' && c.difficulty !== filter) return false;
+      if (catFilter !== 'all' && !c.chapter?.includes(catFilter)) return false;
+      if (search && !c.problem.toLowerCase().includes(search.toLowerCase()) && !c.chapter?.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [filter, catFilter, search]);
 
   return (
     <AnimatePresence>
@@ -55,14 +52,14 @@ export default function ExerciseBank({ isOpen, onClose, onSelectChallenge }) {
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+            <div className="p-5 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
                   <Layers size={24} className="text-violet-400" />
                 </div>
                 <div>
-                  <h2 className="text-white font-black uppercase tracking-widest text-lg">Kho Bài Tập</h2>
-                  <p className="text-[10px] text-violet-400/70 font-bold uppercase tracking-[0.2em] mt-0.5">SpatialMind Exercise Bank</p>
+                  <h2 className="text-white font-black uppercase tracking-widest text-base">Kho Bài Tập</h2>
+                  <p className="text-[10px] text-violet-400/70 font-bold uppercase tracking-[0.15em]">100 Ngày Phá Kén · {ALL_EXERCISES.length} câu</p>
                 </div>
               </div>
               <button onClick={onClose} className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all">
@@ -71,34 +68,48 @@ export default function ExerciseBank({ isOpen, onClose, onSelectChallenge }) {
             </div>
 
             {/* Toolbar */}
-            <div className="px-6 py-4 border-b border-white/5 flex gap-2">
-              {['all', 'easy', 'medium', 'hard'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    filter === f 
-                      ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30 shadow-[0_0_15px_rgba(139,92,246,0.2)]' 
-                      : 'bg-white/5 text-slate-400 border border-transparent hover:bg-white/10'
-                  }`}
-                >
-                  {f === 'all' ? 'Tất cả' : DIFF_LABEL[f]}
-                </button>
-              ))}
+            <div className="px-5 py-3 border-b border-white/5 flex flex-col gap-2">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Tìm bài tập..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white outline-none placeholder:text-slate-600 focus:border-violet-500/30"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {['all', 'easy', 'medium', 'hard'].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                      filter === f
+                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                        : 'bg-white/5 text-slate-400 border border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    {f === 'all' ? 'Tất cả' : DIFF_LABEL[f]}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
-              {loading ? (
-                <div className="text-center text-slate-500 mt-10">Đang tải dữ liệu...</div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
+              {filtered.length === 0 ? (
+                <div className="text-center text-slate-500 mt-10 text-sm">Không tìm thấy bài tập phù hợp.</div>
               ) : (
-                filtered.map(c => {
+                filtered.map((c, idx) => {
                   const dc = DIFF_COLOR[c.difficulty] || DIFF_COLOR.medium;
                   return (
                     <motion.div
                       key={c.id}
-                      whileHover={{ scale: 1.01 }}
-                      className="rounded-2xl p-4 flex gap-4 transition-all bg-white/5 hover:bg-white/10 border border-white/5 cursor-pointer group"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className="rounded-2xl p-4 flex gap-4 transition-all bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-violet-500/20 cursor-pointer group"
                       onClick={() => {
                         onSelectChallenge && onSelectChallenge(c.problem);
                         onClose();
@@ -107,15 +118,20 @@ export default function ExerciseBank({ isOpen, onClose, onSelectChallenge }) {
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: dc.bg, border: `1px solid ${dc.border}` }}>
                         <Trophy size={16} style={{ color: dc.text }} />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md" style={{ background: dc.bg, color: dc.text }}>
                             {DIFF_LABEL[c.difficulty]}
                           </span>
                           <span className="text-[10px] text-yellow-400 font-bold flex items-center gap-1"><Flame size={10}/> {c.xp} XP</span>
+                          <span className="text-[9px] text-slate-600">{c.source}</span>
                         </div>
-                        <h3 className="text-white font-bold text-sm group-hover:text-violet-300 transition-colors">{c.title}</h3>
-                        <p className="text-slate-400 text-xs mt-1 leading-relaxed line-clamp-1">{c.problem}</p>
+                        <div className="text-slate-300 text-xs leading-relaxed line-clamp-2">
+                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            {c.problem}
+                          </ReactMarkdown>
+                        </div>
+                        <p className="text-[10px] text-slate-600 mt-1">{c.chapter}</p>
                       </div>
                       <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-400">
