@@ -323,6 +323,11 @@ export default function App() {
           ? `${baseUrl}/api/algebra/solve` 
           : 'http://localhost:8000/api/algebra/solve';
           
+        const response = await axios.post(apiUrl, { 
+          query: promptInput,
+          image: uploadedImage
+        });
+          
         setAlgebraData(response.data);
         setShowAlgebraSolution(true);
         if (response.data.function_string) {
