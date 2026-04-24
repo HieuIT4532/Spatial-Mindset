@@ -30,6 +30,9 @@ import {
   Zap,
   Sliders,
   Share2,
+  BookOpen,
+  Database,
+  Book,
 } from 'lucide-react';
 
 // Components
@@ -46,6 +49,8 @@ import ExplorerMode from './components/ExplorerMode';
 import SharePanel from './components/SharePanel';
 import ProfileDashboard from './components/ProfileDashboard';
 import LandingPage from './components/LandingPage';
+import TheoryPanel from './components/TheoryPanel';
+import ExerciseBank from './components/ExerciseBank';
 import { getRankInfo } from './components/GameHUD';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -145,6 +150,9 @@ export default function App() {
   const [isExplorerOpen, setIsExplorerOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isTheoryOpen, setIsTheoryOpen] = useState(false);
+  const [isExerciseBankOpen, setIsExerciseBankOpen] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState(null);
   const [explorerPendingGenerate, setExplorerPendingGenerate] = useState(false);
   
   // Quiz state
@@ -650,6 +658,30 @@ export default function App() {
                   <MessageSquare size={16} />
                   Socratic AI Chat
                 </motion.button>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsExerciseBankOpen(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-4 bg-white/5 hover:bg-violet-500/10 border border-white/5 rounded-2xl text-slate-400 hover:text-violet-400 transition-all group"
+                  >
+                    <Database size={16} className="group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Học liệu</span>
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setSelectedLesson(null);
+                      setIsTheoryOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-4 bg-white/5 hover:bg-emerald-500/10 border border-white/5 rounded-2xl text-slate-400 hover:text-emerald-400 transition-all group"
+                  >
+                    <BookOpen size={16} className="group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Lý thuyết</span>
+                  </motion.button>
+                </div>
               </div>
 
               {/* Steps Area */}
@@ -1049,6 +1081,27 @@ export default function App() {
           }}
         />
       )}
+
+      {/* 📚 Theory & Exercise Bank */}
+      <TheoryPanel 
+        isOpen={isTheoryOpen} 
+        onClose={() => setIsTheoryOpen(false)} 
+        lesson={selectedLesson} 
+      />
+      
+      <ExerciseBank 
+        isOpen={isExerciseBankOpen} 
+        onClose={() => setIsExerciseBankOpen(false)}
+        onSelectLesson={(lesson) => {
+          setSelectedLesson(lesson);
+          setIsExerciseBankOpen(false);
+          setIsTheoryOpen(true);
+        }}
+        onSendToAI={(problem) => {
+          setPromptInput(problem);
+          setIsExerciseBankOpen(false);
+        }}
+      />
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar {
