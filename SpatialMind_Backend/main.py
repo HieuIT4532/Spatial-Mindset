@@ -415,11 +415,10 @@ def get_socratic_hint(request: SocraticRequest):
         raise HTTPException(status_code=500, detail="Gemini API chưa được cấu hình.")
     
     try:
-        prompt = SOCRATIC_TUTOR_PROMPT.format(
-            problem=request.problem_statement,
-            wrong_step=request.student_wrong_step,
-            theory=request.theory_markdown
-        )
+        # Sử dụng .replace thay cho .format để tránh lỗi với dấu ngoặc nhọn trong LaTeX/JSON
+        prompt = SOCRATIC_TUTOR_PROMPT.replace("{problem}", request.problem_statement) \
+                                     .replace("{wrong_step}", request.student_wrong_step) \
+                                     .replace("{theory}", request.theory_markdown)
 
         response = gemini_client.models.generate_content(
             model="gemini-3-flash-preview", 

@@ -81,9 +81,18 @@ export default function SocraticChat({ isOpen, onClose, problemStatement, hint }
         id: Date.now(),
       }]);
     } catch (err) {
+      let errorMessage = '⚠️ Không kết nối được với AI. Hãy kiểm tra backend nhé!';
+      if (err.response?.data?.detail) {
+        errorMessage = `⚠️ ${err.response.data.detail}`;
+      } else if (err.response?.status === 429) {
+        errorMessage = '⚠️ Hệ thống đang bận (Rate Limit). Vui lòng đợi một lát rồi thử lại.';
+      } else if (err.message) {
+        errorMessage = `⚠️ Lỗi: ${err.message}`;
+      }
+
       setMessages(prev => [...prev, {
         role: 'ai',
-        content: '⚠️ Không kết nối được với AI. Hãy kiểm tra backend nhé!',
+        content: errorMessage,
         id: Date.now(),
       }]);
     } finally {
