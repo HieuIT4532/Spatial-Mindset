@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import SpatialVector from './Math/SpatialVector';
 import { motion, AnimatePresence } from 'framer-motion';
+import MathText3D from './Math/MathText3D';
 
 const COLORS = {
   red:   '#f43f5e',
@@ -116,19 +117,12 @@ function ClickableVertex({ name, position, theme, onClick, isHighlighted }) {
           emissiveIntensity={isHighlighted ? 3 : (theme === 'dark' ? 0.5 : 0)}
         />
       </Sphere>
-      <Html distanceFactor={10}>
-        <div
-          className={`px-2 py-0.5 rounded border text-[10px] font-bold whitespace-nowrap select-none pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 shadow-lg transition-all duration-200 ${
-            isHighlighted
-              ? 'bg-yellow-500/90 border-yellow-300/80 text-black scale-110'
-              : theme === 'dark'
-                ? 'bg-slate-900/80 border-white/20 text-white backdrop-blur-sm'
-                : 'bg-white/90 border-slate-200 text-slate-900 backdrop-blur-sm'
-          }`}
-        >
-          {name}
-        </div>
-      </Html>
+      <MathText3D 
+        text={name} 
+        position={[0, 0, 0]} 
+        isHighlighted={isHighlighted} 
+        theme={theme} 
+      />
     </group>
   );
 }
@@ -179,6 +173,41 @@ function ClickableEdge({ from, to, color, lineWidth, dashed, onClick, isHighligh
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
     </group>
+  );
+}
+
+// =====================
+// Polygon Face (Mặt phẳng)
+// =====================
+function PolygonFace({ vertices, color, opacity, isHighlighted }) {
+  const geometry = useMemo(() => {
+    // Basic triangle fan from the first vertex
+    if (vertices.length < 3) return null;
+    const pts = [];
+    const v0 = vertices[0];
+    for (let i = 1; i < vertices.length - 1; i++) {
+      const v1 = vertices[i];
+      const v2 = vertices[i + 1];
+      pts.push(...v0, ...v1, ...v2);
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    geom.computeVertexNormals();
+    return geom;
+  }, [vertices]);
+
+  if (!geometry) return null;
+
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial
+        color={color || '#22d3ee'}
+        transparent
+        opacity={isHighlighted ? Math.min((opacity || 0.1) + 0.3, 1) : (opacity || 0.1)}
+        side={THREE.DoubleSide}
+        depthWrite={false}
+      />
+    </mesh>
   );
 }
 
@@ -314,6 +343,32 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
     });
   }, [data, highlighted, handleEdgeClick, theme]);
 
+  // Base faces
+  const baseFaces = useMemo(() => {
+    if (!data.faces) return [];
+    return data.faces.map((face, idx) => {
+      // face could be ["A", "B", "C"] or { vertices: ["A","B","C"], color: "blue", opacity: 0.2 }
+      const faceVertices = Array.isArray(face) ? face : face.vertices;
+      if (!faceVertices) return null;
+      
+      const pts = faceVertices.map(v => data.vertices[v]).filter(Boolean);
+      if (pts.length < 3) return null;
+      
+      const color = (face.color && COLORS[face.color]) || COLORS.blue;
+      const opacity = face.opacity || 0.1;
+      
+      return (
+        <PolygonFace 
+          key={`base-face-${idx}`} 
+          vertices={pts} 
+          color={color} 
+          opacity={opacity} 
+          isHighlighted={false} 
+        />
+      );
+    });
+  }, [data, theme]);
+
   // Step elements
   const stepElements = useMemo(() => {
     if (!data.steps) return [];
@@ -408,6 +463,7 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
       <group onClick={(e) => { if (e.object.isMesh && e.object.geometry.type === 'BoxGeometry') return; }}>
         {showAxes && <axesHelper args={[2]} />}
         <Float speed={1.5} rotationIntensity={0.08} floatIntensity={0.15}>
+          {baseFaces}
           {baseEdges}
           {stepElements}
           {vectorElements}

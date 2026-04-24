@@ -30,6 +30,7 @@ import {
   Zap,
   Sliders,
   Share2,
+  BookOpen,
 } from 'lucide-react';
 
 // Components
@@ -46,6 +47,8 @@ import ExplorerMode from './components/ExplorerMode';
 import SharePanel from './components/SharePanel';
 import ProfileDashboard from './components/ProfileDashboard';
 import LandingPage from './components/LandingPage';
+import TheoryPanel from './components/TheoryPanel';
+import ExerciseBank from './components/ExerciseBank';
 import { getRankInfo } from './components/GameHUD';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -145,6 +148,8 @@ export default function App() {
   const [isExplorerOpen, setIsExplorerOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isTheoryOpen, setIsTheoryOpen] = useState(false);
+  const [isExerciseBankOpen, setIsExerciseBankOpen] = useState(false);
   const [explorerPendingGenerate, setExplorerPendingGenerate] = useState(false);
   
   // Quiz state
@@ -462,6 +467,18 @@ export default function App() {
 
           <div className="h-6 w-[1px] bg-white/10 mx-1" />
 
+          {/* Exercise Bank button */}
+          <button
+            onClick={() => setIsExerciseBankOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-violet-500/10 text-violet-400/60 hover:text-violet-400 transition-all"
+            title="Kho bài tập"
+          >
+            <Layers size={16} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Kho bài</span>
+          </button>
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+
           {/* Explorer Mode button */}
           <button
             onClick={() => setIsExplorerOpen(e => !e)}
@@ -475,6 +492,20 @@ export default function App() {
             <Sliders size={16} />
             <span className="text-[9px] font-black uppercase tracking-widest">Explorer</span>
           </button>
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+
+          {/* Theory button */}
+          <button
+            onClick={() => setIsTheoryOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all hover:bg-cyan-500/10 text-slate-500 hover:text-cyan-400`}
+            title="Lý thuyết Hình học"
+          >
+            <BookOpen size={16} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Lý thuyết</span>
+          </button>
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
 
           {/* Share button */}
           <button
@@ -1024,6 +1055,22 @@ export default function App() {
         onClose={() => setIsShareOpen(false)}
         problem={promptInput}
         geometryData={geometryData}
+      />
+
+      {/* 📘 Theory Panel */}
+      <TheoryPanel
+        isOpen={isTheoryOpen}
+        onClose={() => setIsTheoryOpen(false)}
+      />
+
+      {/* 📚 Exercise Bank Panel */}
+      <ExerciseBank
+        isOpen={isExerciseBankOpen}
+        onClose={() => setIsExerciseBankOpen(false)}
+        onSelectChallenge={(problem) => {
+          setPromptInput(problem);
+          setActiveMode('GEOMETRY');
+        }}
       />
 
       {/* 👤 Profile Dashboard */}
