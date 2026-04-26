@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -103,8 +103,8 @@ class GeometryRequest(BaseModel):
 class DrawElement(BaseModel):
     model_config = ConfigDict(extra='ignore', populate_by_name=True)
     type: str  # "line", "point", "vector", "right_angle", "function"
-    from_point: Optional[str] = Field(None, alias="from")
-    to_point: Optional[str] = Field(None, alias="to")
+    from_point: Optional[Union[str, List[Any], Any]] = Field(None, alias="from")
+    to_point: Optional[Union[str, List[Any], Any]] = Field(None, alias="to")
     name: Optional[str] = None
     color: str = "black"
     style: str = "solid"
@@ -211,7 +211,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
 }
 
 4. XP Reward: Dựa trên độ phức tạp (Easy: 30-50, Medium: 60-100, Hard: 120-200).
-5. JSON ESCAPING: BẮT BUỘC escape tất cả dấu gạch chéo ngược (\\) trong LaTeX thành gạch chéo ngược kép (\\\\) để JSON hợp lệ. Ví dụ: "\\\\frac{a}{b}" thay vì "\\frac{a}{b}"."""
+5. JSON ESCAPING: BẮT BUỘC escape tất cả dấu gạch chéo ngược (\\) trong LaTeX thành gạch chéo ngược kép (\\\\).
+6. DRAW ELEMENTS: Trong "draw_elements", trường "from" và "to" BẮT BUỘC phải là TÊN ĐỈNH (ví dụ: "A", "B"), KHÔNG ĐƯỢC để tọa độ [x,y,z] vào đây."""
 
         contents = [f"Đề bài: {request.query}"]
         if request.image:
@@ -274,8 +275,14 @@ BẮT BUỘC TRẢ VỀ JSON THEO CẤU TRÚC:
         response_text = response_text.replace('\\\\ ', '\\\\') 
 
         data_raw = json.loads(response_text)
-        data_obj = GeometryResponseOutput(**data_raw)
-        data = data_obj.model_dump()
+        
+        # Thử parse qua Pydantic, nếu lỗi thì dùng raw data để tránh crash
+        try:
+            data_obj = GeometryResponseOutput(**data_raw)
+            data = data_obj.model_dump()
+        except Exception as ve:
+            logging.warning(f"Pydantic Validation Error (using raw data): {ve}")
+            data = data_raw
         
         # Chuyển đổi List[VertexRec] ngược lại thành Dict cho frontend
         formatted_vertices = {}

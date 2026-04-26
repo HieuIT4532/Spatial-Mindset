@@ -323,6 +323,8 @@ export default function App() {
           ? `${baseUrl}/api/algebra/solve` 
           : 'http://localhost:8000/api/algebra/solve';
           
+        // Gọi API giải toán đại số
+        const response = await axios.post(apiUrl, { query: promptInput });
         setAlgebraData(response.data);
         setShowAlgebraSolution(true);
         if (response.data.function_string) {
