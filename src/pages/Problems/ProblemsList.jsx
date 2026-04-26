@@ -5,31 +5,34 @@ import {
   getCoreRowModel, 
   getSortedRowModel, 
   getPaginationRowModel,
+  getFilteredRowModel,
   flexRender 
 } from '@tanstack/react-table';
-import { CheckCircle2, Circle, ChevronUp, ChevronDown, Search, Filter } from 'lucide-react';
-
-const MOCK_PROBLEMS = [
-  { id: 1, title: 'Tính thể tích khối chóp S.ABCD', acceptance: 68.5, difficulty: 'Easy', status: 'solved', topic: 'Hình chóp' },
-  { id: 2, title: 'Góc giữa hai mặt phẳng (SAB) và (SCD)', acceptance: 45.2, difficulty: 'Medium', status: 'unsolved', topic: 'Góc' },
-  { id: 3, title: 'Khoảng cách chéo nhau giữa hai đường thẳng', acceptance: 22.8, difficulty: 'Hard', status: 'unsolved', topic: 'Khoảng cách' },
-  { id: 4, title: 'Thể tích khối lăng trụ tam giác đều', acceptance: 75.1, difficulty: 'Easy', status: 'solved', topic: 'Lăng trụ' },
-  { id: 5, title: 'Mặt cầu ngoại tiếp hình chóp', acceptance: 35.4, difficulty: 'Medium', status: 'unsolved', topic: 'Mặt cầu' },
-  { id: 6, title: 'Thiết diện cắt bởi mặt phẳng (P)', acceptance: 18.9, difficulty: 'Hard', status: 'unsolved', topic: 'Thiết diện' },
-];
+import { CheckCircle2, Circle, MinusCircle, ChevronUp, ChevronDown, Search, Filter } from 'lucide-react';
+import { useProblemsStore } from '../../stores/useProblemsStore';
 
 export default function ProblemsList() {
   const navigate = useNavigate();
-  const [data] = useState(MOCK_PROBLEMS);
+  const { problems, solvedStatus } = useProblemsStore();
   const [sorting, setSorting] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+
+  // Merge status into problems data for the table
+  const data = useMemo(() => 
+    problems.map(p => ({ ...p, status: solvedStatus[p.id] || 'unsolved' })),
+    [problems, solvedStatus]
+  );
 
   const columns = useMemo(() => [
     {
       accessorKey: 'status',
       header: 'Trạng thái',
-      cell: info => info.getValue() === 'solved' 
-        ? <CheckCircle2 size={18} className="text-emerald-400 mx-auto" /> 
-        : <Circle size={18} className="text-slate-600 mx-auto" />,
+      cell: info => {
+        const val = info.getValue();
+        if (val === 'solved') return <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />;
+        if (val === 'attempted') return <MinusCircle size={18} className="text-yellow-400 mx-auto" />;
+        return <Circle size={18} className="text-slate-600 mx-auto" />;
+      },
       size: 80,
     },
     {
@@ -75,12 +78,16 @@ export default function ProblemsList() {
   const table = useReactTable({
     data,
     columns,
-    state: { sorting },
+    state: { sorting, globalFilter },
     onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
+
+  const stats = useProblemsStore.getState().getStats();
 
   return (
     <div className="min-h-screen pt-24 px-8 pb-12 bg-[#020617] text-white">
@@ -90,9 +97,9 @@ export default function ProblemsList() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-              Kho Bài Tập <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold border border-cyan-500/30">Hệ Thống Mới</span>
+              Kho Bài Tập <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold border border-cyan-500/30">{stats.solved}/{stats.total} đã giải</span>
             </h1>
-            <p className="text-slate-400 mt-2 text-sm">Chinh phục hình học không gian với SpatialMind Judge System.</p>
+            <p className="text-slate-400 mt-2 text-sm">Chinh phục hình học không gian với SpatialMind Judge System. Tỷ lệ AC: {stats.acceptRate}%</p>
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -100,13 +107,12 @@ export default function ProblemsList() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input 
                 type="text" 
+                value={globalFilter}
+                onChange={e => setGlobalFilter(e.target.value)}
                 placeholder="Tìm kiếm bài toán..." 
                 className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all"
               />
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-sm hover:bg-white/5 transition-colors">
-              <Filter size={16} className="text-slate-400" /> Lọc
-            </button>
           </div>
         </div>
 

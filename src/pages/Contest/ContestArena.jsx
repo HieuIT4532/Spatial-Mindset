@@ -5,19 +5,30 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { ChevronLeft, Check, Terminal, Play, Loader2, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { ChevronLeft, Check, Terminal, Loader2, Clock, ShieldAlert } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
-import { PerspectiveCamera, OrbitControls, Environment } from '@react-three/drei';
-import GeometryViewer from '../../components/GeometryViewer';
+import { PerspectiveCamera, OrbitControls } from '@react-three/drei';
+import { useContestStore } from '../../stores/useContestStore';
+import { useGamificationStore } from '../../stores/useGamificationStore';
 
 export default function ContestArena() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
+  const contestId = parseInt(id);
+
+  const { contests, contestResults, submitContestResult } = useContestStore();
+  const { addXP } = useGamificationStore();
+
+  const contest = contests.find(c => c.id === contestId);
+  const existingResult = contestResults[contestId];
+
+  const [timeLeft, setTimeLeft] = useState(contest?.durationSeconds || 3600);
   const [answer, setAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(!!existingResult);
 
   useEffect(() => {
+    if (submitted) return;
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -28,7 +39,7 @@ export default function ContestArena() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [submitted]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -37,10 +48,15 @@ export default function ContestArena() {
   };
 
   const handleSubmit = () => {
+    if (!answer.trim() || submitted) return;
     setIsSubmitting(true);
     setTimeout(() => {
+      // Mock scoring: 80% nếu có nhập đáp án, 0% nếu trống
+      const score = answer.trim() ? 80 : 0;
+      submitContestResult(contestId, [answer], score);
+      if (score >= 60) addXP(200);
+      setSubmitted(true);
       setIsSubmitting(false);
-      alert('Đã ghi nhận đáp án! Chờ kết quả khi cuộc thi kết thúc.');
     }, 1000);
   };
 
@@ -57,7 +73,9 @@ export default function ContestArena() {
             <ChevronLeft size={18} />
           </button>
           <div className="flex items-center gap-3">
-            <span className="font-black uppercase tracking-wider text-sm text-rose-400">Arena #{id}</span>
+            <span className="font-black uppercase tracking-wider text-sm text-rose-400">
+              {contest?.title || `Arena #${id}`}
+            </span>
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 border border-white/10 text-slate-400">
               Bài 1 / 4
             </span>
@@ -66,19 +84,26 @@ export default function ContestArena() {
         
         {/* Timer */}
         <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl font-mono text-xl font-bold shadow-inner
-          ${timeLeft < 300 ? 'bg-rose-500 text-white animate-pulse' : 'bg-black/50 text-rose-400 border border-rose-500/30'}`}
+          ${submitted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+           timeLeft < 300 ? 'bg-rose-500 text-white animate-pulse' : 'bg-black/50 text-rose-400 border border-rose-500/30'}`}
         >
           <Clock size={18} />
-          {formatTime(timeLeft)}
+          {submitted ? 'Đã nộp' : formatTime(timeLeft)}
         </div>
 
         <div className="flex items-center gap-2">
+          {existingResult && (
+            <span className="text-xs font-bold text-emerald-400 mr-2">
+              Elo: {existingResult.eloChange > 0 ? '+' : ''}{existingResult.eloChange}
+            </span>
+          )}
           <button 
             onClick={handleSubmit}
-            disabled={isSubmitting || timeLeft === 0}
+            disabled={isSubmitting || timeLeft === 0 || submitted}
             className="px-6 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-2 disabled:opacity-50"
           >
-            {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Submit Answer
+            {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} 
+            {submitted ? 'Đã Submit' : 'Submit Answer'}
           </button>
         </div>
       </div>
@@ -110,12 +135,19 @@ Tìm $x$ để thể tích khối trụ là lớn nhất?`}
                 <h3 className="text-sm font-bold text-slate-300 mb-4">Gửi đáp án:</h3>
                 <input 
                   type="text" 
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
+                  value={submitted ? (existingResult?.answers?.[0] || answer) : answer}
+                  onChange={(e) => !submitted && setAnswer(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                   placeholder="Nhập giá trị x (VD: 2a)"
-                  className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                  disabled={submitted}
+                  className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-rose-500/50 disabled:opacity-50"
                   onPaste={(e) => { e.preventDefault(); alert('Cảnh báo: Không dán dữ liệu trong lúc thi!'); }}
                 />
+                {submitted && (
+                  <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold">
+                    ✓ Đã ghi nhận đáp án. Kết quả: {existingResult?.score || 80}% — Elo {existingResult?.eloChange > 0 ? '+' : ''}{existingResult?.eloChange}
+                  </div>
+                )}
               </div>
             </div>
           </Panel>
