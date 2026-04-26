@@ -1,7 +1,5 @@
-import React from 'react';
-import { Mafs, Coordinates, Plot } from 'mafs';
-import 'mafs/core.css'; // Dành cho các style cốt lõi
-import 'mafs/font.css'; // Dành cho font chữ công thức toán học
+import React, { useEffect, useRef } from 'react';
+import functionPlot from 'function-plot';
 
 /**
  * Component FunctionPlotter hiển thị đồ thị hàm số 2D
@@ -14,38 +12,49 @@ export default function FunctionPlotter({
   domain = [-10, 10],
   color = "#22d3ee" 
 }) {
-  // Chuyển đổi chuỗi Python-style sang Javascript-style đơn giản
-  const getFunction = (expr) => {
-    try {
-      const jsExpr = expr
-        .replace(/\*\*/g, '^') // Tạm thời để xử lý tiếp bên dưới
-        .replace(/sin/g, 'Math.sin')
-        .replace(/cos/g, 'Math.cos')
-        .replace(/tan/g, 'Math.tan')
-        .replace(/exp/g, 'Math.exp')
-        .replace(/log/g, 'Math.log')
-        .replace(/sqrt/g, 'Math.sqrt')
-        .replace(/pi/g, 'Math.PI')
-        .replace(/\^/g, '**'); // Chuyển ngược lại về lũy thừa JS
+  const rootRef = useRef(null);
 
-      // eslint-disable-next-line no-new-func
-      return new Function('x', `try { return ${jsExpr}; } catch(e) { return 0; }`);
-    } catch (e) {
-      return (x) => 0;
-    }
-  };
+  useEffect(() => {
+    if (!rootRef.current) return;
+    
+    const renderPlot = () => {
+      try {
+        // Clean up previous plot
+        rootRef.current.innerHTML = '';
+        
+        // Convert python style to math.js style if needed
+        const mathExpr = expression.replace(/\*\*/g, '^');
 
-  const f = getFunction(expression);
+        functionPlot({
+          target: rootRef.current,
+          width: rootRef.current.clientWidth || 600,
+          height: rootRef.current.clientHeight || 400,
+          grid: true,
+          xAxis: { domain: domain },
+          yAxis: { domain: domain },
+          data: [{
+            fn: mathExpr,
+            color: color
+          }]
+        });
+      } catch (err) {
+        console.warn("Lỗi vẽ đồ thị:", err);
+      }
+    };
+
+    renderPlot();
+
+    // Re-render on window resize
+    window.addEventListener('resize', renderPlot);
+    return () => window.removeEventListener('resize', renderPlot);
+  }, [expression, domain, color]);
 
   return (
-    <div className="w-full h-full bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-700 p-2 relative">
+    <div className="w-full h-full bg-slate-50/5 rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative">
       <div className="absolute top-4 left-4 z-10 bg-black/60 backdrop-blur px-3 py-1.5 rounded-lg border border-white/5 text-[10px] font-mono text-cyan-400">
         f(x) = {expression}
       </div>
-      <Mafs viewBox={{ x: domain, y: domain }} preserveAspectRatio={false}>
-        <Coordinates.Cartesian />
-        <Plot.OfX y={f} color={color} />
-      </Mafs>
+      <div ref={rootRef} className="w-full h-full min-h-[400px] flex items-center justify-center [&>svg]:!text-white" />
     </div>
   );
 }
