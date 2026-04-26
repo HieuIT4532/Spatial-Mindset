@@ -234,7 +234,7 @@ function InfoTooltip({ info, onClose }) {
 // =====================
 // Main GeometryViewer
 // =====================
-const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true }) => {
+const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true, showGrid = true }) => {
   const [highlighted, setHighlighted] = useState(null);
   const [tooltip, setTooltip] = useState(null);
 
@@ -407,6 +407,7 @@ const GeometryViewer = ({ data, currentStep = 0, theme = 'dark', showAxes = true
 
       <group onClick={(e) => { if (e.object.isMesh && e.object.geometry.type === 'BoxGeometry') return; }}>
         {showAxes && <axesHelper args={[2]} />}
+        {showGrid && <gridHelper args={[20, 20, theme === 'dark' ? '#1e293b' : '#cbd5e1', theme === 'dark' ? '#0f172a' : '#f1f5f9']} rotation={[Math.PI / 2, 0, 0]} />}
         <Float speed={1.5} rotationIntensity={0.08} floatIntensity={0.15}>
           {baseEdges}
           {stepElements}

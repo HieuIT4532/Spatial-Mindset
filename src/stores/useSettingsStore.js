@@ -17,7 +17,7 @@ export const useSettingsStore = create(
       setAntiAliasing: (antiAliasing) => set({ antiAliasing }),
       shadows: true,
       setShadows: (shadows) => set({ shadows }),
-      canvasBackgroundColor: '#000000',
+      canvasBackgroundColor: '#020617',
       setCanvasBackgroundColor: (canvasBackgroundColor) => set({ canvasBackgroundColor }),
 
       // Shortcuts mapping

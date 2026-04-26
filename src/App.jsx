@@ -192,7 +192,12 @@ export default function App() {
   const navigate = useNavigate();
   
   // Settings Store
-  const { showGrid, showAxes, setShowAxes, antiAliasing, shadows, canvasBackgroundColor } = useSettingsStore();
+  const { 
+    showGrid, setShowGrid, 
+    showAxes, setShowAxes, 
+    antiAliasing, shadows, 
+    canvasBackgroundColor 
+  } = useSettingsStore();
   
   // Quiz state
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -306,7 +311,8 @@ export default function App() {
         if (action.target === 'profile') setIsProfileOpen(true);
         break;
       case 'toggle':
-        if (action.target === 'grid') setShowAxes(prev => !prev);
+        if (action.target === 'grid') setShowGrid(!showGrid);
+        if (action.target === 'axes') setShowAxes(!showAxes);
         break;
       case 'camera':
         if (action.action === 'reset' && controlsRef.current) {
@@ -1024,10 +1030,10 @@ export default function App() {
             )}
           </div>
         ) : (
-          <Canvas dpr={[1, 2]} shadows gl={{ antialias: true }}>
+          <Canvas dpr={[1, 2]} shadows={shadows} gl={{ antialias: antiAliasing }}>
             <Suspense fallback={<SceneLoader />}>
               <PerspectiveCamera makeDefault fov={45} position={[8, 6, 12]} />
-              <color attach="background" args={[theme === 'dark' ? '#020617' : '#e0f2fe']} />
+              <color attach="background" args={[canvasBackgroundColor]} />
               
               <ambientLight intensity={theme === 'dark' ? 0.8 : 1.0} />
               <spotLight position={[10, 20, 10]} intensity={2} angle={0.3} penumbra={1} castShadow />
@@ -1048,7 +1054,7 @@ export default function App() {
 
               <group position={[0, -1, 0]}>
                 {(activeMode === 'GEOMETRY' || activeMode === 'VECTOR') && geometryData && (
-                  <GeometryViewer data={geometryData} currentStep={activeStep} theme={theme} showAxes={showAxes} />
+                  <GeometryViewer data={geometryData} currentStep={activeStep} theme={theme} showAxes={showAxes} showGrid={showGrid} />
                 )}
                 
                 {activeMode === 'GEOMETRY' && !geometryData && (
