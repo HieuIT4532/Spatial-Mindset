@@ -45,8 +45,8 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_api_key_here":
 
 app = FastAPI(
     title="SpatialMind API with Gemini AI",
-    description="API cho ứng dụng SpatialMind, kết hợp Gemini và SymPy",
-    version="v.1.0"
+    description="API cho ứng dụng SpatialMind v3.0 — Auth, Gallery, AI Proxy, Notifications",
+    version="v3.0"
 )
 
 app.add_middleware(
@@ -56,6 +56,94 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── v3.0: Wire Notification Routes ──
+try:
+    from notification_routes import notification_router
+    app.include_router(notification_router)
+    logging.info("Notification routes loaded successfully")
+except Exception as e:
+    logging.warning(f"Notification routes not loaded: {e}")
+
+# ── v3.0: AI Proxy (Key Rotation + Caching) ──
+try:
+    from ai_proxy import get_ai_proxy
+    ai_proxy = get_ai_proxy()
+    logging.info(f"AI Proxy loaded with {len(ai_proxy.keys)} key(s)")
+except Exception as e:
+    ai_proxy = None
+    logging.warning(f"AI Proxy not loaded: {e}")
+
+# ── v3.0: Health & Gallery Endpoints ──
+
+@app.get("/api/health")
+async def health_check():
+    """Health check + AI proxy status"""
+    proxy_health = ai_proxy.health_report() if ai_proxy else {"status": "not_loaded"}
+    return {
+        "status": "ok",
+        "version": "3.0",
+        "gemini_configured": bool(GEMINI_API_KEY),
+        "ai_proxy": proxy_health,
+    }
+
+# Gallery: In-memory store (upgrade to Firestore in production)
+_gallery_posts = []
+
+@app.get("/api/gallery/feed")
+async def gallery_feed(sort: str = "hot", page: int = 1, search: str = None):
+    """Lấy danh sách bài đăng gallery"""
+    posts = _gallery_posts.copy()
+    if search:
+        posts = [p for p in posts if search.lower() in p.get("title", "").lower() or search.lower() in p.get("problem", "").lower()]
+    if sort == "hot":
+        posts.sort(key=lambda p: p.get("votes", 0), reverse=True)
+    elif sort == "new":
+        posts.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    per_page = 20
+    start = (page - 1) * per_page
+    return {"posts": posts[start:start + per_page], "total": len(posts)}
+
+@app.post("/api/gallery/submit")
+async def gallery_submit(request: Request):
+    """Submit bài lên gallery"""
+    data = await request.json()
+    post = {
+        "id": f"post-{len(_gallery_posts) + 1}-{int(time.time())}",
+        "title": data.get("title", "Untitled"),
+        "problem": data.get("problem", ""),
+        "difficulty": data.get("difficulty", "medium"),
+        "geometryData": data.get("geometryData"),
+        "authorName": data.get("authorName", "Ẩn danh"),
+        "authorUid": data.get("uid", ""),
+        "votes": 0,
+        "created_at": date.today().isoformat(),
+        "date": "Hôm nay",
+    }
+    _gallery_posts.append(post)
+    return {"status": "ok", "id": post["id"]}
+
+@app.post("/api/gallery/{post_id}/vote")
+async def gallery_vote(post_id: str, request: Request):
+    """Vote cho bài"""
+    data = await request.json()
+    direction = data.get("direction", "up")
+    for p in _gallery_posts:
+        if p["id"] == post_id:
+            p["votes"] += 1 if direction == "up" else -1
+            return {"status": "ok", "votes": p["votes"]}
+    raise HTTPException(status_code=404, detail="Post not found")
+
+@app.post("/api/user/sync-beacon")
+async def sync_beacon(request: Request):
+    """Beacon sync endpoint (gọi khi đóng tab)"""
+    try:
+        body = await request.body()
+        data = json.loads(body)
+        logging.info(f"Beacon sync received: uid={data.get('uid')}, xp={data.get('xp')}")
+        return {"status": "ok"}
+    except Exception:
+        return {"status": "ignored"}
 
 # ----------------- Rate Limiting Middleware -----------------
 ip_last_request = {}

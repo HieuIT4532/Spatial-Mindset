@@ -33,6 +33,12 @@ import {
   BookOpen,
   Database,
   Book,
+  Bell,
+  Command,
+  Users,
+  LogIn,
+  LogOut,
+  User,
 } from 'lucide-react';
 
 // Components
@@ -51,7 +57,13 @@ import ProfileDashboard from './components/ProfileDashboard';
 import LandingPage from './components/LandingPage';
 import TheoryPanel from './components/TheoryPanel';
 import ExerciseBank from './components/ExerciseBank';
+import AuthModal from './components/AuthModal';
+import CommandPalette from './components/CommandPalette';
+import CommunityGallery from './components/CommunityGallery';
+import NotificationSettings from './components/NotificationSettings';
 import { getRankInfo } from './components/GameHUD';
+import { useAuth } from './contexts/AuthContext';
+import { useUserSync } from './hooks/useUserSync';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -154,6 +166,22 @@ export default function App() {
   const [isExerciseBankOpen, setIsExerciseBankOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [explorerPendingGenerate, setExplorerPendingGenerate] = useState(false);
+
+  // ── New v3.0 State ──
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [solvedProblems, setSolvedProblems] = useState(() => {
+    return parseInt(localStorage.getItem('spatialmind_solved') || '0', 10);
+  });
+
+  // ── Auth + Sync ──
+  const { user, isAuthenticated, logout, isOfflineMode, userProfile } = useAuth();
+  const { isSynced, lastSync } = useUserSync({
+    xp, streak, solvedProblems,
+    setXP, setStreak, setSolvedProblems,
+  });
   
   // Quiz state
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -242,6 +270,45 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('spatialmind_xp', String(xp));
   }, [xp]);
+
+  // ── Keyboard Shortcuts (Ctrl+K, etc.) ──
+  useEffect(() => {
+    const handleGlobalKeys = (e) => {
+      // Ctrl+K / Cmd+K → Command Palette
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeys);
+    return () => window.removeEventListener('keydown', handleGlobalKeys);
+  }, []);
+
+  // ── Command Palette action handler ──
+  const handleCommandAction = useCallback((action) => {
+    switch (action.type) {
+      case 'navigate':
+        if (action.target === 'daily-challenge') setShowDailyChallenge(true);
+        if (action.target === 'gallery') setIsGalleryOpen(true);
+        if (action.target === 'share') setIsShareOpen(true);
+        if (action.target === 'exercise-bank') setIsExerciseBankOpen(true);
+        if (action.target === 'profile') setIsProfileOpen(true);
+        break;
+      case 'toggle':
+        if (action.target === 'grid') setShowAxes(prev => !prev);
+        break;
+      case 'camera':
+        if (action.action === 'reset' && controlsRef.current) {
+          controlsRef.current.reset();
+        }
+        break;
+      case 'ai-hint':
+        setIsChatOpen(true);
+        break;
+      default:
+        console.log('Command action:', action);
+    }
+  }, []);
 
   // Show daily challenge on first visit of the day
   useEffect(() => {
@@ -497,6 +564,37 @@ export default function App() {
             <Share2 size={16} />
           </button>
 
+          {/* Community Gallery button */}
+          <button
+            onClick={() => setIsGalleryOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-violet-500/10 text-slate-500 hover:text-violet-400 transition-all"
+            title="Thư viện Cộng đồng"
+          >
+            <Users size={16} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Gallery</span>
+          </button>
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+
+          {/* Command Palette hint */}
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-cyan-400 transition-all"
+            title="Command Palette (Ctrl+K)"
+          >
+            <Command size={14} />
+            <span className="text-[9px] font-bold text-slate-600">Ctrl+K</span>
+          </button>
+
+          {/* Notification button */}
+          <button
+            onClick={() => setIsNotificationOpen(true)}
+            className="p-2.5 rounded-xl hover:bg-orange-500/10 text-slate-500 hover:text-orange-400 transition-all flex items-center justify-center"
+            title="Nhắc nhở hàng ngày"
+          >
+            <Bell size={16} />
+          </button>
+
           <div className="h-6 w-[1px] bg-white/10 mx-1" />
 
           <button
@@ -507,8 +605,6 @@ export default function App() {
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
  
-          <div className="h-6 w-[1px] bg-white/10 mx-1" />
- 
           <button
             onClick={() => setShowAxes(!showAxes)}
             className={`p-2.5 rounded-xl transition-all flex items-center justify-center ${showAxes ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-500 hover:text-cyan-400 hover:bg-white/5'}`}
@@ -516,6 +612,37 @@ export default function App() {
           >
             <LayoutDashboard size={18} />
           </button>
+
+          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+
+          {/* Auth button */}
+          {isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center">
+                  <User size={12} className="text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-emerald-400 max-w-[80px] truncate">
+                  {user?.displayName || user?.email?.split('@')[0] || 'User'}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                className="p-2 rounded-xl hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-all"
+                title="Đăng xuất"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/25 text-cyan-400 hover:bg-cyan-500/25 transition-all"
+            >
+              <LogIn size={14} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Đăng nhập</span>
+            </button>
+          )}
         </motion.div>
       </div>
 
@@ -1100,6 +1227,41 @@ export default function App() {
         onSendToAI={(problem) => {
           setPromptInput(problem);
           setIsExerciseBankOpen(false);
+        }}
+      />
+
+      {/* ── v3.0: Auth Modal ── */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+
+      {/* ── v3.0: Command Palette (Ctrl+K) ── */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onAction={handleCommandAction}
+        geometryData={geometryData}
+        currentMode={activeMode}
+      />
+
+      {/* ── v3.0: Community Gallery ── */}
+      <CommunityGallery
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        onLoadModel={({ geometryData: gd, promptInput: pi }) => {
+          if (gd) setGeometryData(gd);
+          if (pi) setPromptInput(pi);
+        }}
+      />
+
+      {/* ── v3.0: Notification Settings ── */}
+      <NotificationSettings
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+        user={{
+          email: user?.email || '',
+          displayName: user?.displayName || userProfile?.displayName || '',
         }}
       />
 
