@@ -9,7 +9,6 @@ import { ChevronLeft, Check, Terminal, Play, Loader2, Clock, AlertTriangle, Shie
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, OrbitControls, Environment } from '@react-three/drei';
 import GeometryViewer from '../../components/GeometryViewer';
-import { useAppStore } from '../../stores/useAppStore';
 
 export default function ContestArena() {
   const { id } = useParams();
@@ -17,10 +16,8 @@ export default function ContestArena() {
   const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
   const [answer, setAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const setContestMode = useAppStore(state => state.setContestMode);
 
   useEffect(() => {
-    setContestMode(true);
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -30,11 +27,8 @@ export default function ContestArena() {
         return prev - 1;
       });
     }, 1000);
-    return () => {
-      clearInterval(timer);
-      setContestMode(false);
-    };
-  }, [setContestMode]);
+    return () => clearInterval(timer);
+  }, []);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');

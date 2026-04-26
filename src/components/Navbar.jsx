@@ -21,7 +21,6 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { getRankInfo } from './GameHUD';
 import { NavLink } from 'react-router-dom';
-import { useAppStore } from '../stores/useAppStore';
 
 // ── Nav menu items ──
 const NAV_ITEMS = [
@@ -63,11 +62,6 @@ export default function Navbar({
   const notifRef = useRef(null);
 
   const { user, isAuthenticated, logout, userProfile, isOfflineMode } = useAuth();
-  
-  // Use global app store for streak gamification
-  const storeStreak = useAppStore(state => state.currentStreak);
-  const activeStreak = storeStreak > 0 ? storeStreak : streak; 
-
   const { current: rank } = getRankInfo(xp);
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -234,17 +228,17 @@ export default function Navbar({
             <button
               onClick={onOpenDailyChallenge}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-orange-500/10 transition-all group"
-              title={`Streak: ${activeStreak} ngày liên tiếp`}
+              title={`Streak: ${streak} ngày liên tiếp`}
             >
               <Flame
                 size={17}
-                className={`transition-all ${activeStreak > 0
+                className={`transition-all ${streak > 0
                   ? 'text-orange-400 fire-glow group-hover:scale-110'
                   : 'text-slate-600 group-hover:text-orange-400'
                 }`}
               />
-              <span className={`text-sm font-black tabular-nums ${activeStreak > 0 ? 'text-orange-400' : 'text-slate-500'}`}>
-                {activeStreak}
+              <span className={`text-sm font-black tabular-nums ${streak > 0 ? 'text-orange-400' : 'text-slate-500'}`}>
+                {streak}
               </span>
             </button>
 
