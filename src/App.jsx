@@ -62,8 +62,15 @@ import CommandPalette from './components/CommandPalette';
 import CommunityGallery from './components/CommunityGallery';
 import NotificationSettings from './components/NotificationSettings';
 import Navbar from './components/Navbar';
+import SettingsLayout from './pages/Settings/Layout';
+import ProfileTab from './pages/Settings/tabs/ProfileTab';
+import AppearanceTab from './pages/Settings/tabs/AppearanceTab';
+import WorkspaceTab from './pages/Settings/tabs/WorkspaceTab';
+import ShortcutsTab from './pages/Settings/tabs/ShortcutsTab';
 import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
+import { useSettingsStore } from './stores/useSettingsStore';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useUserSync } from './hooks/useUserSync';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -183,6 +190,10 @@ export default function App() {
     xp, streak, solvedProblems,
     setXP, setStreak, setSolvedProblems,
   });
+  const navigate = useNavigate();
+  
+  // Settings Store
+  const { showGrid, showAxes, antiAliasing, shadows, canvasBackgroundColor } = useSettingsStore();
   
   // Quiz state
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -502,7 +513,16 @@ export default function App() {
         onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
       />
 
-      {/* 🌟 Particle Celebration */}
+      <Routes>
+        <Route path="/settings" element={<SettingsLayout />}>
+          <Route path="profile" element={<ProfileTab />} />
+          <Route path="appearance" element={<AppearanceTab />} />
+          <Route path="workspace" element={<WorkspaceTab />} />
+          <Route path="shortcuts" element={<ShortcutsTab />} />
+        </Route>
+        <Route path="*" element={
+          <>
+            {/* 🌟 Particle Celebration */}
       <ParticleEffect trigger={particleTrigger} />
 
       {/* ── Mode switcher sub-bar (dưới Navbar) ── */}
@@ -796,8 +816,8 @@ export default function App() {
                         }}
                       >
                         {geometryData.final_quiz ? (
-                          <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex items-center gap-2">
                               {quizResult === 'correct' ? <Trophy size={16} className="text-emerald-400" /> : <Info size={16} className="text-cyan-400" />}
                               <p className={`font-black text-xs uppercase tracking-widest ${quizResult === 'correct' ? 'text-emerald-400' : 'text-cyan-400'}`}>
                                 {quizResult === 'correct' ? 'Chính xác! 🎉' : 'Chốt đáp án cuối cùng'}
@@ -1234,6 +1254,9 @@ export default function App() {
           75% { transform: translateX(-5px); }
         }
       `}} />
+        </>
+        } />
+      </Routes>
     </div>
   );
 }
