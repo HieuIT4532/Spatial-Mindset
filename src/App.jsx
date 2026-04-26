@@ -61,6 +61,7 @@ import AuthModal from './components/AuthModal';
 import CommandPalette from './components/CommandPalette';
 import CommunityGallery from './components/CommunityGallery';
 import NotificationSettings from './components/NotificationSettings';
+import Navbar from './components/Navbar';
 import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
 import { useUserSync } from './hooks/useUserSync';
@@ -468,7 +469,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-hidden select-none ocean-gradient">
+    <div className="flex flex-col h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-hidden select-none ocean-gradient">
       
       {/* 🏁 Landing Page Overlay */}
       <AnimatePresence>
@@ -484,169 +485,87 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 🎮 Game HUD - Top Right */}
-      <GameHUD xp={xp} streak={streak} onOpenProfile={() => setIsProfileOpen(true)} />
+      {/* ── v3.0 Navbar ── */}
+      <Navbar
+        xp={xp}
+        streak={streak}
+        theme={theme}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenNotifications={() => setIsNotificationOpen(true)}
+        onOpenExerciseBank={() => setIsExerciseBankOpen(true)}
+        onOpenDailyChallenge={() => setShowDailyChallenge(true)}
+        onOpenGallery={() => setIsGalleryOpen(true)}
+        onNavigate={(target) => {
+          if (target === 'login') setIsAuthModalOpen(true);
+        }}
+        onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+      />
 
       {/* 🌟 Particle Celebration */}
       <ParticleEffect trigger={particleTrigger} />
 
-      {/* 🚀 Top Navigation HUD */}
-      <div className="fixed top-8 left-0 w-full flex justify-center z-[60] pointer-events-none">
-        <motion.div 
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="flex items-center gap-1 p-1.5 aqua-glass rounded-2xl pointer-events-auto shadow-2xl"
-        >
-          <div className="flex bg-black/10 rounded-xl p-1 mr-2 overflow-hidden border border-white/5">
-            {[
-              { id: 'GEOMETRY', icon: Box, label: 'Hình học' },
-              { id: 'VECTOR', icon: Dna, label: 'Vector' },
-              { id: 'GRAPH', icon: Layers, label: 'Đồ thị' }
-            ].map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setActiveMode(mode.id)}
-                className={`relative px-5 py-2 rounded-lg transition-all flex items-center gap-2 group`}
-              >
-                {activeMode === mode.id && (
-                  <motion.div 
-                    layoutId="active-tab"
-                    className="absolute inset-0 bg-cyan-500/20 border border-cyan-400/30 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.2)]"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <mode.icon size={14} className={activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'} />
-                <span className={`text-[10px] font-black uppercase tracking-widest ${activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
-                  {mode.label}
-                </span>
-              </button>
-            ))}
-          </div>
+      {/* ── Mode switcher sub-bar (dưới Navbar) ── */}
+      <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
+        style={{ background: 'rgba(2,6,23,0.7)', backdropFilter: 'blur(12px)' }}
+      >
+        {/* Mode tabs */}
+        <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
+          {[
+            { id: 'GEOMETRY', icon: Box, label: 'Hình học 3D' },
+            { id: 'VECTOR',   icon: Dna, label: 'Vector' },
+            { id: 'GRAPH',    icon: Layers, label: 'Đồ thị' }
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => setActiveMode(mode.id)}
+              className="relative px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 group"
+            >
+              {activeMode === mode.id && (
+                <motion.div
+                  layoutId="active-tab"
+                  className="absolute inset-0 bg-cyan-500/20 border border-cyan-400/30 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <mode.icon size={13} className={activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'} />
+              <span className={`text-[10px] font-black uppercase tracking-widest ${activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                {mode.label}
+              </span>
+            </button>
+          ))}
+        </div>
 
-          <div className="h-6 w-[1px] bg-white/10 mx-1" />
-
-          {/* Daily Challenge button */}
-          <button
-            onClick={() => setShowDailyChallenge(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400 transition-all"
-            title="Daily Challenge"
-          >
-            <Flame size={16} />
-            <span className="text-[9px] font-black uppercase tracking-widest">Daily</span>
-          </button>
-
-          <div className="h-6 w-[1px] bg-white/10 mx-1" />
-
-          {/* Explorer Mode button */}
+        {/* Quick action tools */}
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setIsExplorerOpen(e => !e)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
-              isExplorerOpen
-                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
-                : 'hover:bg-cyan-500/10 text-slate-500 hover:text-cyan-400'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+              isExplorerOpen ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20' : 'text-slate-500 hover:text-cyan-400 hover:bg-white/5'
             }`}
-            title="Explorer Mode"
           >
-            <Sliders size={16} />
-            <span className="text-[9px] font-black uppercase tracking-widest">Explorer</span>
+            <Sliders size={12} /> Explorer
           </button>
-
-          {/* Share button */}
           <button
             onClick={() => setIsShareOpen(s => !s)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
-              isShareOpen
-                ? 'bg-violet-500/15 text-violet-400 border border-violet-400/20'
-                : 'hover:bg-violet-500/10 text-slate-500 hover:text-violet-400'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+              isShareOpen ? 'bg-violet-500/15 text-violet-400 border border-violet-400/20' : 'text-slate-500 hover:text-violet-400 hover:bg-white/5'
             }`}
-            title="Chia sẻ bài"
           >
-            <Share2 size={16} />
+            <Share2 size={12} /> Share
           </button>
-
-          {/* Community Gallery button */}
-          <button
-            onClick={() => setIsGalleryOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-violet-500/10 text-slate-500 hover:text-violet-400 transition-all"
-            title="Thư viện Cộng đồng"
-          >
-            <Users size={16} />
-            <span className="text-[9px] font-black uppercase tracking-widest">Gallery</span>
-          </button>
-
-          <div className="h-6 w-[1px] bg-white/10 mx-1" />
-
-          {/* Command Palette hint */}
-          <button
-            onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-cyan-400 transition-all"
-            title="Command Palette (Ctrl+K)"
-          >
-            <Command size={14} />
-            <span className="text-[9px] font-bold text-slate-600">Ctrl+K</span>
-          </button>
-
-          {/* Notification button */}
-          <button
-            onClick={() => setIsNotificationOpen(true)}
-            className="p-2.5 rounded-xl hover:bg-orange-500/10 text-slate-500 hover:text-orange-400 transition-all flex items-center justify-center"
-            title="Nhắc nhở hàng ngày"
-          >
-            <Bell size={16} />
-          </button>
-
-          <div className="h-6 w-[1px] bg-white/10 mx-1" />
-
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2.5 rounded-xl hover:bg-white/5 text-slate-500 hover:text-cyan-400 transition-all flex items-center justify-center"
-            title="Chuyển chế độ Sáng/Tối"
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
- 
           <button
             onClick={() => setShowAxes(!showAxes)}
-            className={`p-2.5 rounded-xl transition-all flex items-center justify-center ${showAxes ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-500 hover:text-cyan-400 hover:bg-white/5'}`}
-            title="Bật/Tắt Trục Tọa Độ"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+              showAxes ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'
+            }`}
           >
-            <LayoutDashboard size={18} />
+            <LayoutDashboard size={12} /> Axes
           </button>
-
-          <div className="h-6 w-[1px] bg-white/10 mx-1" />
-
-          {/* Auth button */}
-          {isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center">
-                  <User size={12} className="text-white" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-400 max-w-[80px] truncate">
-                  {user?.displayName || user?.email?.split('@')[0] || 'User'}
-                </span>
-              </div>
-              <button
-                onClick={logout}
-                className="p-2 rounded-xl hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-all"
-                title="Đăng xuất"
-              >
-                <LogOut size={14} />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/25 text-cyan-400 hover:bg-cyan-500/25 transition-all"
-            >
-              <LogIn size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Đăng nhập</span>
-            </button>
-          )}
-        </motion.div>
+        </div>
       </div>
 
-      {/* 🔮 Floating Sidebar */}
+      {/* 🔮 Floating Sidebar — pushed below Navbar + sub-bar (14+8=22 = top-[88px]) */}
       <motion.div 
         initial={false}
         animate={{ 
@@ -654,7 +573,8 @@ export default function App() {
           x: 0,
           opacity: 1
         }}
-        className="fixed left-8 top-1/2 -translate-y-1/2 h-[85vh] z-50 aqua-glass rounded-[32px] overflow-hidden flex flex-col shadow-2xl border-white/5 group/sidebar transition-all duration-500 ease-in-out"
+        className="fixed left-6 z-50 aqua-glass rounded-[28px] overflow-hidden flex flex-col shadow-2xl border-white/5 group/sidebar transition-all duration-500 ease-in-out"
+        style={{ top: '88px', height: 'calc(100vh - 100px)' }}
       >
         <button 
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
