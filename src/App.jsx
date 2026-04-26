@@ -158,7 +158,6 @@ export default function App() {
   const [algebraData, setAlgebraData] = useState(null);
   const [showAlgebraSolution, setShowAlgebraSolution] = useState(false);
   const [theme, setTheme] = useState('dark');
-  const [showAxes, setShowAxes] = useState(true);
   const [uploadedImage, setUploadedImage] = useState(null);
   
   // Gamification state
@@ -193,7 +192,7 @@ export default function App() {
   const navigate = useNavigate();
   
   // Settings Store
-  const { showGrid, showAxes, antiAliasing, shadows, canvasBackgroundColor } = useSettingsStore();
+  const { showGrid, showAxes, setShowAxes, antiAliasing, shadows, canvasBackgroundColor } = useSettingsStore();
   
   // Quiz state
   const [selectedAnswer, setSelectedAnswer] = useState(null);
