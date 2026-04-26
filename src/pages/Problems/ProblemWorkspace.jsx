@@ -9,6 +9,7 @@ import { ChevronLeft, Check, Terminal, Play, Loader2 } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, OrbitControls, Environment } from '@react-three/drei';
 import GeometryViewer from '../../components/GeometryViewer';
+import { useAppStore } from '../../stores/useAppStore';
 
 const MOCK_PROBLEM = {
   id: 1,
@@ -47,6 +48,7 @@ export default function ProblemWorkspace() {
   const [answer, setAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState(null); // 'success' | 'fail' | null
+  const incrementStreak = useAppStore(state => state.incrementStreak);
 
   const handleSubmit = () => {
     setIsSubmitting(true);
@@ -54,6 +56,7 @@ export default function ProblemWorkspace() {
       // Mock validation
       if (answer.replace(/\s/g, '') === MOCK_PROBLEM.expectedAnswer.replace(/\s/g, '')) {
         setResult('success');
+        incrementStreak();
       } else {
         setResult('fail');
       }

@@ -4,7 +4,8 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { X, Send, Sparkles, Bot, User, RotateCcw, Lightbulb, Info } from 'lucide-react';
+import { X, Send, Sparkles, Bot, User, RotateCcw, Lightbulb, Info, Lock } from 'lucide-react';
+import { useAppStore } from '../stores/useAppStore';
 
 // =====================
 // Typing indicator
@@ -33,6 +34,7 @@ export default function SocraticChat({ isOpen, onClose, problemStatement, hint }
   const [isAITyping, setIsAITyping] = useState(false);
   const [theory, setTheory] = useState('');
   const bottomRef = useRef(null);
+  const isContestMode = useAppStore(state => state.isContestMode);
 
   // Init: khi mở panel, inject lời chào của AI + hint
   useEffect(() => {
@@ -146,6 +148,24 @@ export default function SocraticChat({ isOpen, onClose, problemStatement, hint }
               boxShadow: '-20px 0 60px rgba(0,0,0,0.5)',
             }}
           >
+            {isContestMode && (
+              <div className="absolute inset-0 z-[200] bg-[#020617]/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center border-l border-rose-500/20">
+                <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mb-6">
+                  <Lock size={32} className="text-rose-500" />
+                </div>
+                <h3 className="text-xl font-black text-white mb-2 uppercase tracking-wide">AI Bị Khóa</h3>
+                <p className="text-sm text-rose-400/80 leading-relaxed max-w-[250px]">
+                  Socrate AI được tự động vô hiệu hóa trong chế độ thi đấu để đảm bảo tính công bằng.
+                </p>
+                <button 
+                  onClick={onClose}
+                  className="mt-8 px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold uppercase tracking-wider transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.2)' }}>
               <div className="flex items-center gap-3">
