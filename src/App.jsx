@@ -67,6 +67,15 @@ import ProfileTab from './pages/Settings/tabs/ProfileTab';
 import AppearanceTab from './pages/Settings/tabs/AppearanceTab';
 import WorkspaceTab from './pages/Settings/tabs/WorkspaceTab';
 import ShortcutsTab from './pages/Settings/tabs/ShortcutsTab';
+
+// Main Hub Pages
+import ProblemsList from './pages/Problems/ProblemsList';
+import ProblemWorkspace from './pages/Problems/ProblemWorkspace';
+import ContestList from './pages/Contest/ContestList';
+import ContestArena from './pages/Contest/ContestArena';
+import DiscussForum from './pages/Discuss/DiscussForum';
+import PostDetail from './pages/Discuss/PostDetail';
+
 import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
 import { useSettingsStore } from './stores/useSettingsStore';
@@ -519,6 +528,16 @@ export default function App() {
       />
 
       <Routes>
+        {/* Hub Routes */}
+        <Route path="/problems" element={<ProblemsList />} />
+        <Route path="/problems/:id" element={<ProblemWorkspace />} />
+        
+        <Route path="/contest" element={<ContestList />} />
+        <Route path="/contest/:id" element={<ContestArena />} />
+        
+        <Route path="/discuss" element={<DiscussForum />} />
+        <Route path="/discuss/:id" element={<PostDetail />} />
+
         <Route path="/settings" element={<SettingsLayout />}>
           <Route path="profile" element={<ProfileTab />} />
           <Route path="appearance" element={<AppearanceTab />} />
