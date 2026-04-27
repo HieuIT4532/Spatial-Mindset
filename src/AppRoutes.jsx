@@ -10,6 +10,7 @@ import LoginPage from './pages/Login/LoginPage';
 import ProblemSetPage from './pages/Problems/ProblemSetPage';
 import ProblemWorkspace from './pages/Problems/ProblemWorkspace';
 import CreateProblemPage from './pages/Problems/CreateProblemPage';
+import ContestPage from './pages/Contest/ContestPage';
 
 export default function AppRoutes() {
   return (
@@ -18,7 +19,7 @@ export default function AppRoutes() {
       <Route path="/problems" element={<ProblemSetPage />} />
       <Route path="/problems/create" element={<CreateProblemPage />} />
       <Route path="/problems/:id" element={<ProblemWorkspace />} />
-      <Route path="/contest" element={<App />} />
+      <Route path="/contest" element={<ContestPage />} />
       <Route path="/discuss" element={<App />} />
       <Route path="/login" element={<LoginPage />} />
       
