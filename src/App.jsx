@@ -62,24 +62,10 @@ import CommandPalette from './components/CommandPalette';
 import CommunityGallery from './components/CommunityGallery';
 import NotificationSettings from './components/NotificationSettings';
 import Navbar from './components/Navbar';
-import SettingsLayout from './pages/Settings/Layout';
-import ProfileTab from './pages/Settings/tabs/ProfileTab';
-import AppearanceTab from './pages/Settings/tabs/AppearanceTab';
-import WorkspaceTab from './pages/Settings/tabs/WorkspaceTab';
-import ShortcutsTab from './pages/Settings/tabs/ShortcutsTab';
-
-// Main Hub Pages
-import ProblemsList from './pages/Problems/ProblemsList';
-import ProblemWorkspace from './pages/Problems/ProblemWorkspace';
-import ContestList from './pages/Contest/ContestList';
-import ContestArena from './pages/Contest/ContestArena';
-import DiscussForum from './pages/Discuss/DiscussForum';
-import PostDetail from './pages/Discuss/PostDetail';
-
+import SettingsPanel from './components/Settings/SettingsPanel';
+import useSettingsStore from './stores/useSettingsStore';
 import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
-import { useSettingsStore } from './stores/useSettingsStore';
-import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useUserSync } from './hooks/useUserSync';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -167,6 +153,7 @@ export default function App() {
   const [algebraData, setAlgebraData] = useState(null);
   const [showAlgebraSolution, setShowAlgebraSolution] = useState(false);
   const [theme, setTheme] = useState('dark');
+  const [showAxes, setShowAxes] = useState(true);
   const [uploadedImage, setUploadedImage] = useState(null);
   
   // Gamification state
@@ -198,15 +185,6 @@ export default function App() {
     xp, streak, solvedProblems,
     setXP, setStreak, setSolvedProblems,
   });
-  const navigate = useNavigate();
-  
-  // Settings Store
-  const { 
-    showGrid, setShowGrid, 
-    showAxes, setShowAxes, 
-    antiAliasing, shadows, 
-    canvasBackgroundColor 
-  } = useSettingsStore();
   
   // Quiz state
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -320,8 +298,7 @@ export default function App() {
         if (action.target === 'profile') setIsProfileOpen(true);
         break;
       case 'toggle':
-        if (action.target === 'grid') setShowGrid(!showGrid);
-        if (action.target === 'axes') setShowAxes(!showAxes);
+        if (action.target === 'grid') setShowAxes(prev => !prev);
         break;
       case 'camera':
         if (action.action === 'reset' && controlsRef.current) {
@@ -527,26 +504,7 @@ export default function App() {
         onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
       />
 
-      <Routes>
-        {/* Hub Routes */}
-        <Route path="/problems" element={<ProblemsList />} />
-        <Route path="/problems/:id" element={<ProblemWorkspace />} />
-        
-        <Route path="/contest" element={<ContestList />} />
-        <Route path="/contest/:id" element={<ContestArena />} />
-        
-        <Route path="/discuss" element={<DiscussForum />} />
-        <Route path="/discuss/:id" element={<PostDetail />} />
-
-        <Route path="/settings" element={<SettingsLayout />}>
-          <Route path="profile" element={<ProfileTab />} />
-          <Route path="appearance" element={<AppearanceTab />} />
-          <Route path="workspace" element={<WorkspaceTab />} />
-          <Route path="shortcuts" element={<ShortcutsTab />} />
-        </Route>
-        <Route path="*" element={
-          <>
-            {/* 🌟 Particle Celebration */}
+      {/* 🌟 Particle Celebration */}
       <ParticleEffect trigger={particleTrigger} />
 
       {/* ── Mode switcher sub-bar (dưới Navbar) ── */}
@@ -840,8 +798,8 @@ export default function App() {
                         }}
                       >
                         {geometryData.final_quiz ? (
-                            <div className="flex flex-col gap-3">
-                              <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
                               {quizResult === 'correct' ? <Trophy size={16} className="text-emerald-400" /> : <Info size={16} className="text-cyan-400" />}
                               <p className={`font-black text-xs uppercase tracking-widest ${quizResult === 'correct' ? 'text-emerald-400' : 'text-cyan-400'}`}>
                                 {quizResult === 'correct' ? 'Chính xác! 🎉' : 'Chốt đáp án cuối cùng'}
@@ -1049,10 +1007,10 @@ export default function App() {
             )}
           </div>
         ) : (
-          <Canvas dpr={[1, 2]} shadows={shadows} gl={{ antialias: antiAliasing }}>
+          <Canvas dpr={[1, 2]} shadows={useSettingsStore.getState().workspace.shadows} gl={{ antialias: useSettingsStore.getState().workspace.antiAliasing }}>
             <Suspense fallback={<SceneLoader />}>
               <PerspectiveCamera makeDefault fov={45} position={[8, 6, 12]} />
-              <color attach="background" args={[canvasBackgroundColor]} />
+              <color attach="background" args={[useSettingsStore.getState().workspace.backgroundColor || (theme === 'dark' ? '#020617' : '#e0f2fe')]} />
               
               <ambientLight intensity={theme === 'dark' ? 0.8 : 1.0} />
               <spotLight position={[10, 20, 10]} intensity={2} angle={0.3} penumbra={1} castShadow />
@@ -1073,7 +1031,7 @@ export default function App() {
 
               <group position={[0, -1, 0]}>
                 {(activeMode === 'GEOMETRY' || activeMode === 'VECTOR') && geometryData && (
-                  <GeometryViewer data={geometryData} currentStep={activeStep} theme={theme} showAxes={showAxes} showGrid={showGrid} />
+                  <GeometryViewer data={geometryData} currentStep={activeStep} theme={theme} showAxes={showAxes} />
                 )}
                 
                 {activeMode === 'GEOMETRY' && !geometryData && (
@@ -1229,6 +1187,9 @@ export default function App() {
         }}
       />
 
+      {/* ── v3.0: Settings Panel (Zustand-managed) ── */}
+      <SettingsPanel />
+
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -1278,9 +1239,6 @@ export default function App() {
           75% { transform: translateX(-5px); }
         }
       `}} />
-        </>
-        } />
-      </Routes>
     </div>
   );
 }

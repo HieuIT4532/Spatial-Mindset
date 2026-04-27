@@ -20,13 +20,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRankInfo } from './GameHUD';
-import { NavLink } from 'react-router-dom';
+import useSettingsStore from '../stores/useSettingsStore';
 
 // ── Nav menu items ──
 const NAV_ITEMS = [
-  { id: 'problems',  label: 'Problems',  labelVi: 'Bài tập',    path: '/problems' },
-  { id: 'contest',   label: 'Contest',   labelVi: 'Thi đấu',    path: '/contest' },
-  { id: 'discuss',   label: 'Discuss',   labelVi: 'Thảo luận',  path: '/discuss' },
+  { id: 'problems',  label: 'Problems',  labelVi: 'Bài tập',    action: 'exercise-bank' },
+  { id: 'contest',   label: 'Contest',   labelVi: 'Thi đấu',    action: 'daily-challenge' },
+  { id: 'discuss',   label: 'Discuss',   labelVi: 'Thảo luận',  action: 'gallery' },
 ];
 
 // ── Mock notifications ──
@@ -159,7 +159,9 @@ export default function Navbar({
                 <NavItem
                   key={item.id}
                   item={item}
+                  isActive={activeNavItem === item.id}
                   theme={theme}
+                  onClick={() => handleNavClick(item)}
                 />
               ))}
             </nav>
@@ -350,7 +352,7 @@ export default function Navbar({
                     theme={theme}
                     onProfile={() => { onOpenProfile?.(); setIsDropdownOpen(false); }}
                     onToggleTheme={() => { onToggleTheme?.(); }}
-                    onOpenSettings={() => { setIsDropdownOpen(false); }}
+                    onOpenSettings={() => { useSettingsStore.getState().openSettings('profile'); setIsDropdownOpen(false); }}
                     onLogout={() => { logout(); setIsDropdownOpen(false); }}
                   />
                 )}
@@ -367,26 +369,37 @@ export default function Navbar({
 }
 
 // ── Nav Item Component ──
-function NavItem({ item, theme }) {
+function NavItem({ item, isActive, theme, onClick }) {
   return (
-    <NavLink
-      to={item.path}
-      className={({ isActive }) => `
-        relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all group
-        ${isActive 
-          ? (theme === 'dark' ? 'text-white border-b-2 border-cyan-400 font-bold' : 'text-black border-b-2 border-cyan-500 font-bold') 
-          : (theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black')}
-      `}
+    <button
+      onClick={onClick}
+      className="relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all group"
+      style={{
+        color: isActive
+          ? (theme === 'dark' ? '#f8fafc' : '#0f172a')
+          : (theme === 'dark' ? '#64748b' : '#64748b'),
+      }}
     >
-      <span className="relative z-10">
+      <span className="relative z-10 group-hover:text-white transition-colors">
         {item.label}
       </span>
+
+      {/* Active underline */}
+      {isActive && (
+        <motion.div
+          layoutId="nav-underline"
+          className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+          style={{ background: 'linear-gradient(90deg, #22d3ee, #6366f1)' }}
+          transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
+        />
+      )}
+
       {/* Hover bg */}
       <span
         className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
         style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}
       />
-    </NavLink>
+    </button>
   );
 }
 
