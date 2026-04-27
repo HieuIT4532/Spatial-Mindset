@@ -134,11 +134,11 @@ const preprocessLatex = (text) => {
 // =====================
 // Component: Main App
 // =====================
-export default function App() {
+export default function App({ isWorkspaceMode = false, initialProblem = null }) {
   const [isStarted, setIsStarted] = useState(() => {
     return localStorage.getItem('spatialmind_started') === 'true';
   });
-  const [promptInput, setPromptInput] = useState('');
+  const [promptInput, setPromptInput] = useState(initialProblem ? initialProblem.content : '');
   const [geometryData, setGeometryData] = useState(null);
   const [hintData, setHintData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -473,7 +473,7 @@ export default function App() {
       
       {/* 🏁 Landing Page Overlay */}
       <AnimatePresence>
-        {!isStarted && (
+        {!isStarted && !isWorkspaceMode && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, y: -100 }}
@@ -486,27 +486,30 @@ export default function App() {
       </AnimatePresence>
 
       {/* ── v3.0 Navbar ── */}
-      <Navbar
-        xp={xp}
-        streak={streak}
-        theme={theme}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-        onOpenNotifications={() => setIsNotificationOpen(true)}
-        onOpenExerciseBank={() => setIsExerciseBankOpen(true)}
-        onOpenDailyChallenge={() => setShowDailyChallenge(true)}
-        onOpenGallery={() => setIsGalleryOpen(true)}
-        onNavigate={(target) => {
-          if (target === 'login') setIsAuthModalOpen(true);
-        }}
-        onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-      />
+      {!isWorkspaceMode && (
+        <Navbar
+          xp={xp}
+          streak={streak}
+          theme={theme}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenNotifications={() => setIsNotificationOpen(true)}
+          onOpenExerciseBank={() => setIsExerciseBankOpen(true)}
+          onOpenDailyChallenge={() => setShowDailyChallenge(true)}
+          onOpenGallery={() => setIsGalleryOpen(true)}
+          onNavigate={(target) => {
+            if (target === 'login') setIsAuthModalOpen(true);
+          }}
+          onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        />
+      )}
 
       {/* 🌟 Particle Celebration */}
       <ParticleEffect trigger={particleTrigger} />
 
       {/* ── Mode switcher sub-bar (dưới Navbar) ── */}
-      <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
+      {!isWorkspaceMode && (
+        <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
         style={{ background: 'rgba(2,6,23,0.7)', backdropFilter: 'blur(12px)' }}
       >
         {/* Mode tabs */}
@@ -564,8 +567,10 @@ export default function App() {
           </button>
         </div>
       </div>
+      )}
 
       {/* 🔮 Floating Sidebar — pushed below Navbar + sub-bar (14+8=22 = top-[88px]) */}
+      {!isWorkspaceMode && (
       <motion.div 
         initial={false}
         animate={{ 
