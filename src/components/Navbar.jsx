@@ -168,6 +168,16 @@ export default function Navbar({
                   + Tạo bài tập
                 </NavLink>
               )}
+
+              {/* Admin Dashboard */}
+              {userProfile?.role === 'admin' && (
+                <NavLink
+                  to="/admin"
+                  className="ml-2 relative px-3 py-1.5 text-sm font-bold rounded-lg transition-all text-violet-400 hover:bg-violet-500/10 border border-violet-500/20"
+                >
+                  Admin Center
+                </NavLink>
+              )}
             </nav>
           </div>
 

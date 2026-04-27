@@ -11,6 +11,7 @@ import ProblemSetPage from './pages/Problems/ProblemSetPage';
 import ProblemWorkspace from './pages/Problems/ProblemWorkspace';
 import CreateProblemPage from './pages/Problems/CreateProblemPage';
 import ContestPage from './pages/Contest/ContestPage';
+import AdminDashboard from './pages/Admin/AdminDashboard';
 
 export default function AppRoutes() {
   return (
@@ -20,6 +21,7 @@ export default function AppRoutes() {
       <Route path="/problems/create" element={<CreateProblemPage />} />
       <Route path="/problems/:id" element={<ProblemWorkspace />} />
       <Route path="/contest" element={<ContestPage />} />
+      <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/discuss" element={<App />} />
       <Route path="/login" element={<LoginPage />} />
       

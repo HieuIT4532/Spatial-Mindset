@@ -142,6 +142,30 @@ export const MOCK_PROBLEMS = [
     totalSubmissions: 2500,
     isPremium: false,
     content: "Cho khối chóp S.ABC có đáy ABC là tam giác vuông cân tại A, $AB = a$, $\\widehat{SBA} = \\widehat{SCA} = 90^\\circ$, góc giữa hai mặt phẳng (SAB) và (SAC) bằng $60^\\circ$. Thể tích của khối chóp đã cho bằng:\n\nA. $\\frac{a^3}{3}$ \nB. $a^3$ \nC. $\\frac{a^3}{2}$ \nD. $\\frac{a^3}{6}$"
+  },
+  {
+    id: "pending-1",
+    title: "Câu hỏi của Giáo viên A: Thể tích lăng trụ",
+    difficulty: "Medium",
+    tags: ["Lăng trụ", "Thể tích"],
+    acceptanceRate: 0,
+    totalSubmissions: 0,
+    isPremium: false,
+    status: "pending_approval",
+    authorId: "teacher-123",
+    content: "Tính thể tích khối lăng trụ tam giác đều có tất cả các cạnh bằng $a$."
+  },
+  {
+    id: "pending-2",
+    title: "Câu hỏi của Giáo viên B: Khoảng cách điểm đến mặt phẳng",
+    difficulty: "Hard",
+    tags: ["Khoảng cách", "Tọa độ"],
+    acceptanceRate: 0,
+    totalSubmissions: 0,
+    isPremium: true,
+    status: "pending_approval",
+    authorId: "teacher-456",
+    content: "Trong không gian Oxyz, tính khoảng cách từ điểm $M(1, 2, 3)$ đến mặt phẳng $(P): x + y + z - 1 = 0$."
   }
 ];
 
@@ -155,8 +179,30 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const fetchProblems = async () => {
   await delay(600); // Simulate network latency
-  // Trả về metadata, bỏ content để nhẹ
-  return MOCK_PROBLEMS.map(({ content, ...meta }) => meta);
+  // Trả về metadata, chỉ lấy các bài đã 'published' cho user thường
+  return MOCK_PROBLEMS
+    .filter(p => !p.status || p.status === 'published')
+    .map(({ content, ...meta }) => meta);
+};
+
+export const fetchAdminProblems = async () => {
+  await delay(600);
+  return MOCK_PROBLEMS; // Admin thấy hết
+};
+
+export const approveProblem = async (id) => {
+  await delay(500);
+  const problem = MOCK_PROBLEMS.find(p => p.id === id);
+  if (problem) problem.status = 'published';
+  return true;
+};
+
+export const rejectProblem = async (id) => {
+  await delay(500);
+  // Thực tế sẽ xóa hoặc set status rejected
+  const index = MOCK_PROBLEMS.findIndex(p => p.id === id);
+  if (index !== -1) MOCK_PROBLEMS.splice(index, 1);
+  return true;
 };
 
 export const fetchProblemById = async (id) => {
