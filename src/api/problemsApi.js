@@ -66,7 +66,15 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const fetchProblems = async () => {
   await delay(600); // Simulate network latency
-  return MOCK_PROBLEMS;
+  // Trả về metadata, bỏ content để nhẹ
+  return MOCK_PROBLEMS.map(({ content, ...meta }) => meta);
+};
+
+export const fetchProblemById = async (id) => {
+  await delay(400); // Simulate network latency
+  const problem = MOCK_PROBLEMS.find(p => p.id === id);
+  if (!problem) throw new Error("Problem not found");
+  return problem;
 };
 
 export const fetchUserProgress = async (uid) => {

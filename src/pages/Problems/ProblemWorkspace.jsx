@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { ArrowLeft, CheckCircle, Lightbulb, Play } from 'lucide-react';
 
-import { fetchProblems } from '../../api/problemsApi';
+import { fetchProblemById } from '../../api/problemsApi';
 import App from '../../App'; // Import App components or 3D Canvas
 import { Badge } from '../../components/ui/badge';
 
@@ -17,12 +17,10 @@ export default function ProblemWorkspace() {
   const navigate = useNavigate();
   
   // Lấy chi tiết bài toán
-  const { data: problems, isLoading } = useQuery({
-    queryKey: ['problems'],
-    queryFn: fetchProblems,
+  const { data: problem, isLoading } = useQuery({
+    queryKey: ['problem', id],
+    queryFn: () => fetchProblemById(id),
   });
-
-  const problem = problems?.find(p => p.id === id);
 
   if (isLoading) {
     return <div className="h-screen w-full flex items-center justify-center dark:bg-[#020617] dark:text-white">Đang tải đề bài...</div>;
