@@ -21,7 +21,7 @@
 // =====================================================
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, GithubAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -42,6 +42,7 @@ let auth = null;
 let db = null;
 let storage = null;
 let googleProvider = null;
+let githubProvider = null;
 
 if (isFirebaseConfigured) {
   try {
@@ -49,8 +50,11 @@ if (isFirebaseConfigured) {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+    
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
+    
+    githubProvider = new GithubAuthProvider();
   } catch (err) {
     console.warn('Firebase initialization failed:', err.message);
   }
@@ -61,5 +65,5 @@ if (isFirebaseConfigured) {
   );
 }
 
-export { app, auth, db, storage, googleProvider, isFirebaseConfigured };
+export { app, auth, db, storage, googleProvider, githubProvider, isFirebaseConfigured };
 export default app;

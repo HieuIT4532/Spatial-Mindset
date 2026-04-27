@@ -158,6 +158,16 @@ export default function Navbar({
                   )}
                 </NavLink>
               ))}
+
+              {/* Phân quyền RBAC: Nút Tạo bài tập chỉ hiện cho Teacher/Admin */}
+              {(userProfile?.role === 'teacher' || userProfile?.role === 'admin') && (
+                <NavLink
+                  to="/problems/create"
+                  className="ml-2 relative px-3 py-1.5 text-sm font-bold rounded-lg transition-all text-cyan-500 hover:bg-cyan-500/10 border border-cyan-500/20"
+                >
+                  + Tạo bài tập
+                </NavLink>
+              )}
             </nav>
           </div>
 

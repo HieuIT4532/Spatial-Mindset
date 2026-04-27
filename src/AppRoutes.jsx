@@ -9,12 +9,14 @@ import ShortcutsTab from './pages/Settings/tabs/ShortcutsTab';
 import LoginPage from './pages/Login/LoginPage';
 import ProblemSetPage from './pages/Problems/ProblemSetPage';
 import ProblemWorkspace from './pages/Problems/ProblemWorkspace';
+import CreateProblemPage from './pages/Problems/CreateProblemPage';
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<App />} />
       <Route path="/problems" element={<ProblemSetPage />} />
+      <Route path="/problems/create" element={<CreateProblemPage />} />
       <Route path="/problems/:id" element={<ProblemWorkspace />} />
       <Route path="/contest" element={<App />} />
       <Route path="/discuss" element={<App />} />

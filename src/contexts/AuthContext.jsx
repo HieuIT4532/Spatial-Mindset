@@ -49,20 +49,24 @@ function getErrorMessage(code) {
   return messages[code] || `Đã xảy ra lỗi (${code}). Vui lòng thử lại.`;
 }
 
+import { useAuthStore } from '../store/useAuthStore';
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
 
+  const { setUser: setZustandUser, setInitializing } = useAuthStore();
+
   // ── Auth state listener ──
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
       setLoading(false);
+      setInitializing(false);
       return;
     }
 
-    // Dynamic import firebase/auth to avoid top-level await
     let unsubscribe = () => {};
 
     Promise.all([
@@ -74,25 +78,27 @@ export function AuthProvider({ children }) {
 
       unsubscribe = onAuth(auth, async (firebaseUser) => {
         if (firebaseUser) {
-          // Load or create Firestore profile
           try {
             const profileRef = doc(db, 'users', firebaseUser.uid);
             const profileSnap = await getDoc(profileRef);
 
+            let role = 'student';
+
             if (profileSnap.exists()) {
+              role = profileSnap.data().role || 'student';
               await updateDoc(profileRef, {
                 lastActive: serverTimestamp(),
                 displayName: firebaseUser.displayName || profileSnap.data().displayName,
                 photoURL: firebaseUser.photoURL || profileSnap.data().photoURL,
               });
-              setUserProfile({ ...profileSnap.data(), uid: firebaseUser.uid });
+              setUserProfile({ ...profileSnap.data(), uid: firebaseUser.uid, role });
             } else {
-              // New user → create default profile
               const newProfile = {
                 uid: firebaseUser.uid,
                 displayName: firebaseUser.displayName || 'Học sinh SpatialMind',
                 email: firebaseUser.email || '',
                 photoURL: firebaseUser.photoURL || '',
+                role: 'student', // Đăng ký mới mặc định là student
                 xp: 0,
                 streak: 0,
                 maxStreak: 0,
@@ -112,23 +118,43 @@ export function AuthProvider({ children }) {
               await setDoc(profileRef, newProfile);
               setUserProfile(newProfile);
             }
+
+            // Sync with Zustand
+            setZustandUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              role: role,
+            });
+
           } catch (err) {
             console.warn('Firestore profile load failed:', err);
             setUserProfile(null);
+            setZustandUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              role: 'student',
+            });
           }
           setUser(firebaseUser);
         } else {
           setUser(null);
           setUserProfile(null);
+          setZustandUser(null);
         }
         setLoading(false);
+        setInitializing(false);
       });
     }).catch(() => {
       setLoading(false);
+      setInitializing(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [setZustandUser, setInitializing]);
 
   // ── Register ──
   const register = useCallback(async (email, password, displayName) => {
@@ -175,6 +201,20 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // ── Login Github ──
+  const loginWithGithub = useCallback(async () => {
+    if (!isFirebaseConfigured) throw new Error('Firebase chưa cấu hình');
+    setAuthError('');
+    try {
+      const { signInWithPopup } = await import('firebase/auth');
+      const result = await signInWithPopup(auth, githubProvider);
+      return result.user;
+    } catch (err) {
+      setAuthError(getErrorMessage(err.code));
+      throw err;
+    }
+  }, []);
+
   // ── Logout ──
   const logout = useCallback(async () => {
     if (!isFirebaseConfigured) return;
@@ -212,6 +252,7 @@ export function AuthProvider({ children }) {
     register,
     login,
     loginWithGoogle,
+    loginWithGithub,
     logout,
     clearError,
     updateUserProfile,
