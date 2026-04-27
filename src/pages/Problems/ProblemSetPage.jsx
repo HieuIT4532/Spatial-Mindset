@@ -21,6 +21,8 @@ import {
   SelectValue 
 } from '../../components/ui/select';
 import { useAuth } from '../../contexts/AuthContext';
+import Navbar from '../../components/Navbar';
+import useSettingsStore from '../../store/useSettingsStore';
 
 // Hook cho Debounce Input
 function useDebounce(value, delay) {
@@ -39,6 +41,7 @@ const TOPIC_TAGS = ['Khoảng cách', 'Góc', 'Thể tích', 'Thiết diện', '
 export default function ProblemSetPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { theme, setTheme } = useSettingsStore();
   const [globalFilter, setGlobalFilter] = useState('');
   const debouncedSearch = useDebounce(globalFilter, 300);
   
@@ -164,10 +167,19 @@ export default function ProblemSetPage() {
   });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 pt-20 px-6 pb-20">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-white dark:bg-zinc-950">
+      <Navbar 
+        xp={user?.xp || 0}
+        streak={user?.streak || 0}
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      />
+
+      <div className="pt-20 px-6 pb-20 max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
         
-        <div>
+        {/* Left Column (Table) */}
+        <div className="flex-1 space-y-6">
+          <div>
           <h1 className="text-3xl font-bold dark:text-white mb-2">Kho bài tập</h1>
           <p className="text-slate-500 dark:text-slate-400">Rèn luyện tư duy không gian với hàng ngàn bài toán từ cơ bản đến nâng cao.</p>
         </div>
@@ -273,6 +285,58 @@ export default function ProblemSetPage() {
             </div>
           )}
         </div>
+        </div>
+
+        {/* Right Column (Sidebar) */}
+        <div className="w-full lg:w-[320px] shrink-0 space-y-6">
+          
+          {/* Calendar / Study Plan */}
+          <div className="bg-white dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 p-5 overflow-hidden">
+            <h3 className="font-semibold text-slate-800 dark:text-white mb-4">Lộ trình học tập</h3>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-bold">
+                  Ngày 1
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Hình học cơ bản</p>
+                  <p className="text-xs text-slate-500">3 bài tập</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold">
+                  Ngày 2
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Khoảng cách</p>
+                  <p className="text-xs text-slate-500">5 bài tập</p>
+                </div>
+              </div>
+            </div>
+            <button className="w-full mt-5 py-2 text-sm text-cyan-600 dark:text-cyan-400 font-medium hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg transition-colors">
+              Xem toàn bộ lộ trình
+            </button>
+          </div>
+
+          {/* Stats Card */}
+          <div className="bg-white dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+            <h3 className="font-semibold text-slate-800 dark:text-white mb-4">Thống kê của bạn</h3>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-slate-500">Đã giải</span>
+              <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                {progress?.solvedProblems?.length || 0} / {problems?.length || 0}
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-2">
+              <div 
+                className="bg-emerald-500 h-2 rounded-full transition-all duration-1000" 
+                style={{ width: `${problems?.length ? ((progress?.solvedProblems?.length || 0) / problems.length) * 100 : 0}%` }}
+              ></div>
+            </div>
+          </div>
+          
+        </div>
+
       </div>
     </div>
   );
