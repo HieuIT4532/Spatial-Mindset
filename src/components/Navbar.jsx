@@ -12,6 +12,29 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Search, 
+  Bell, 
+  Flame, 
+  LogIn, 
+  CheckCheck, 
+  User, 
+  LayoutDashboard, 
+  Settings, 
+  Sun, 
+  LogOut, 
+  Zap, 
+  Trophy, 
+  ChevronDown,
+  Moon,
+  MessageSquare,
+  BookOpen,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { getRankInfo } from './GameHUD';
 
 // ── Nav menu items ──
 const NAV_ITEMS = [
@@ -20,13 +43,24 @@ const NAV_ITEMS = [
   { id: 'discuss',   label: 'Discuss',   labelVi: 'Thảo luận',  action: '/discuss' },
 ];
 
-// ... (skip down to the main Navbar component)
+const MOCK_NOTIFICATIONS = [
+  { id: 1, text: 'Thử thách ngày mới đã sẵn sàng! Chinh phục ngay.', icon: '🎯', time: '5 phút trước', read: false },
+  { id: 2, text: 'HieuIT vừa giải được bài toán "Hình chóp S.ABCD".', icon: '🏆', time: '1 giờ trước', read: false },
+  { id: 3, text: 'Hệ thống vừa cập nhật tính năng Explorer Mode v3.0.', icon: '🚀', time: '2 giờ trước', read: true },
+  { id: 4, text: 'Bạn đã đạt mốc 7 ngày Streak! Tiếp tục phát huy.', icon: '🔥', time: '1 ngày trước', read: true },
+];
+
 export default function Navbar({
   xp = 0,
   streak = 0,
   onOpenCommandPalette,
   onOpenNotifications,
+  onOpenProfile,
+  onOpenExerciseBank,
+  onOpenDailyChallenge,
+  onOpenGallery,
   theme = 'dark',
+  onToggleTheme
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -38,7 +72,7 @@ export default function Navbar({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { user, isAuthenticated, logout, userProfile, isOfflineMode } = useAuth();
+  const { user, isAuthenticated, logout, userProfile } = useAuth();
   const { current: rank } = getRankInfo(xp);
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -66,10 +100,6 @@ export default function Navbar({
 
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const handleNavClick = (path) => {
-    navigate(path);
   };
 
   const displayName = user?.displayName
@@ -101,11 +131,7 @@ export default function Navbar({
 
           {/* ── LEFT: Logo + Brand ── */}
           <div className="flex items-center gap-5 flex-shrink-0">
-            {/* Logo mark */}
-            <NavLink
-              to="/"
-              className="flex items-center gap-2.5 group"
-            >
+            <NavLink to="/" className="flex items-center gap-2.5 group">
               <img
                 src="/logo.png"
                 alt="SpatialMind"
@@ -124,7 +150,6 @@ export default function Navbar({
               </span>
             </NavLink>
 
-            {/* Divider */}
             <div className="h-5 w-px bg-white/10 hidden md:block" />
 
             {/* ── Nav menu items ── */}
@@ -160,21 +185,21 @@ export default function Navbar({
                 </NavLink>
               ))}
 
-              {/* Phân quyền RBAC: Nút Tạo bài tập chỉ hiện cho Teacher/Admin */}
+              {/* RBAC: Teacher/Admin */}
               {(userProfile?.role === 'teacher' || userProfile?.role === 'admin') && (
                 <NavLink
                   to="/problems/create"
-                  className="ml-2 relative px-3 py-1.5 text-sm font-bold rounded-lg transition-all text-cyan-500 hover:bg-cyan-500/10 border border-cyan-500/20"
+                  className="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-cyan-500 hover:bg-cyan-500/10 border border-cyan-500/20"
                 >
                   + Tạo bài tập
                 </NavLink>
               )}
 
-              {/* Admin Dashboard */}
+              {/* Admin Center */}
               {userProfile?.role === 'admin' && (
                 <NavLink
                   to="/admin"
-                  className="ml-2 relative px-3 py-1.5 text-sm font-bold rounded-lg transition-all text-violet-400 hover:bg-violet-500/10 border border-violet-500/20"
+                  className="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-violet-400 hover:bg-violet-500/10 border border-violet-500/20"
                 >
                   Admin Center
                 </NavLink>
@@ -182,171 +207,91 @@ export default function Navbar({
             </nav>
           </div>
 
-          {/* ── SPACER ── */}
           <div className="flex-1" />
 
           {/* ── RIGHT: Tools ── */}
           <div className="flex items-center gap-1.5">
 
-            {/* Search bar (fake button → opens Command Palette) */}
+            {/* Search */}
             <button
               onClick={onOpenCommandPalette}
               className={`
                 hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl
                 border transition-all duration-200 group
                 hover:border-cyan-500/40
-                ${theme === 'dark'
-                  ? 'bg-white/[0.04] border-white/8 hover:bg-white/[0.07]'
-                  : 'bg-black/[0.04] border-black/8 hover:bg-black/[0.07]'
-                }
+                ${theme === 'dark' ? 'bg-white/[0.04] border-white/8' : 'bg-black/[0.04] border-black/8'}
               `}
-              title="Command Palette (Ctrl+K)"
             >
-              <Search
-                size={14}
-                className={`transition-colors ${theme === 'dark' ? 'text-slate-500 group-hover:text-cyan-400' : 'text-slate-400 group-hover:text-cyan-600'}`}
-              />
-              <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                Search...
-              </span>
-              <div className="flex items-center gap-0.5 ml-2">
-                <kbd className={`
-                  flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-bold
-                  font-mono tracking-wider border
-                  ${theme === 'dark'
-                    ? 'bg-white/5 border-white/10 text-slate-500'
-                    : 'bg-black/5 border-black/10 text-slate-400'
-                  }
-                `}>
-                  Ctrl
-                </kbd>
-                <kbd className={`
-                  flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-bold
-                  font-mono border
-                  ${theme === 'dark'
-                    ? 'bg-white/5 border-white/10 text-slate-500'
-                    : 'bg-black/5 border-black/10 text-slate-400'
-                  }
-                `}>
-                  K
-                </kbd>
-              </div>
+              <Search size={14} className="text-slate-500 group-hover:text-cyan-400" />
+              <span className="text-xs text-slate-500">Search...</span>
+              <kbd className="hidden lg:flex px-1.5 py-0.5 rounded text-[9px] font-bold border border-white/10 text-slate-500">Ctrl K</kbd>
             </button>
 
-            {/* Search icon (mobile) */}
-            <button
-              onClick={onOpenCommandPalette}
-              className="sm:hidden p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-cyan-400 transition-all"
-            >
-              <Search size={18} />
-            </button>
-
-            {/* ── Streak badge ── */}
+            {/* Streak */}
             <button
               onClick={() => navigate('/contest')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-orange-500/10 transition-all group"
-              title={`Streak: ${streak} ngày liên tiếp`}
             >
               <Flame
                 size={17}
-                className={`transition-all ${streak > 0
-                  ? 'text-orange-400 fire-glow group-hover:scale-110'
-                  : 'text-slate-600 group-hover:text-orange-400'
-                }`}
+                className={streak > 0 ? 'text-orange-400 animate-pulse' : 'text-slate-600'}
               />
-              <span className={`text-sm font-black tabular-nums ${streak > 0 ? 'text-orange-400' : 'text-slate-500'}`}>
+              <span className={`text-sm font-black ${streak > 0 ? 'text-orange-400' : 'text-slate-500'}`}>
                 {streak}
               </span>
             </button>
 
-            {/* ── Notification bell ── */}
+            {/* Notifications */}
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setIsNotifOpen(v => !v)}
                 className="relative p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-slate-200 transition-all"
-                title="Thông báo"
               >
                 <Bell size={18} />
-                {/* Unread dot */}
                 {unreadCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2 border-[#020617]"
-                  />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2 border-[#020617]" />
                 )}
               </button>
 
-              {/* Notification dropdown */}
               <AnimatePresence>
                 {isNotifOpen && (
                   <NotificationPanel
                     notifications={notifications}
                     onMarkAllRead={markAllRead}
-                    onOpenSettings={() => { setIsNotifOpen(false); navigate('/settings/profile'); }}
+                    onOpenSettings={onOpenNotifications}
                     theme={theme}
                   />
                 )}
               </AnimatePresence>
             </div>
 
-            {/* ── User area ── */}
+            {/* User Dropdown */}
             <div className="relative ml-1" ref={dropdownRef}>
               {isAuthenticated ? (
                 <button
                   onClick={() => setIsDropdownOpen(v => !v)}
                   className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-xl hover:bg-white/5 transition-all group"
                 >
-                  {/* Avatar */}
                   <div className="relative">
                     {user?.photoURL ? (
-                      <img
-                        src={user.photoURL}
-                        alt={displayName}
-                        className="w-7 h-7 rounded-full object-cover ring-2 ring-cyan-500/30 group-hover:ring-cyan-500/60 transition-all"
-                      />
+                      <img src={user.photoURL} alt={displayName} className="w-7 h-7 rounded-full object-cover ring-2 ring-cyan-500/30" />
                     ) : (
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white ring-2 ring-cyan-500/30 group-hover:ring-cyan-500/60 transition-all"
-                        style={{ background: `linear-gradient(135deg, ${rank.color}88, #6366f1)` }}
-                      >
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white ring-2 ring-cyan-500/30" style={{ background: `linear-gradient(135deg, ${rank.color}88, #6366f1)` }}>
                         {avatarInitial}
                       </div>
                     )}
-                    {/* Online dot */}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border-2 border-[#020617]" />
                   </div>
-
-                  <div className="hidden lg:flex flex-col items-start">
-                    <span className="text-xs font-bold text-slate-200 leading-tight max-w-[80px] truncate">
-                      {displayName}
-                    </span>
-                    <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: rank.color }}>
-                      {rank.emoji} {rank.name}
-                    </span>
-                  </div>
-
-                  <ChevronDown
-                    size={13}
-                    className={`text-slate-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-                  />
+                  <ChevronDown size={13} className={`text-slate-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
               ) : (
                 <button
                   onClick={() => navigate('/login')}
-                  className="flex items-center gap-2 px-4 py-1.5 rounded-xl font-bold text-xs transition-all"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(34,211,238,0.15), rgba(99,102,241,0.15))',
-                    border: '1px solid rgba(34,211,238,0.25)',
-                    color: '#22d3ee',
-                  }}
+                  className="px-4 py-1.5 rounded-xl font-bold text-xs bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20"
                 >
-                  <LogIn size={14} />
                   Đăng nhập
                 </button>
               )}
 
-              {/* User dropdown */}
               <AnimatePresence>
                 {isDropdownOpen && isAuthenticated && (
                   <UserDropdown
@@ -356,9 +301,10 @@ export default function Navbar({
                     displayName={displayName}
                     xp={xp}
                     theme={theme}
-                    onProfile={() => { setIsDropdownOpen(false); navigate('/settings/profile'); }}
+                    onProfile={onOpenProfile}
                     onOpenSettings={() => { setIsDropdownOpen(false); navigate('/settings/appearance'); }}
                     onLogout={() => { logout(); setIsDropdownOpen(false); navigate('/'); }}
+                    onToggleTheme={onToggleTheme}
                   />
                 )}
               </AnimatePresence>
@@ -366,83 +312,47 @@ export default function Navbar({
           </div>
         </div>
       </header>
-
-      {/* Spacer so content doesn't hide under fixed header */}
       <div className="h-14 flex-shrink-0" />
     </>
   );
 }
 
-// ── Notification Panel ──
 function NotificationPanel({ notifications, onMarkAllRead, onOpenSettings, theme }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.95 }}
-      transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-      className="absolute right-0 top-[calc(100%+8px)] w-80 rounded-2xl overflow-hidden shadow-2xl z-[200]"
-      style={{
-        background: theme === 'dark'
-          ? 'rgba(2,6,23,0.97)'
-          : 'rgba(248,250,252,0.97)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-      }}
+      className="absolute right-0 top-[calc(100%+8px)] w-80 rounded-2xl overflow-hidden shadow-2xl z-[200] border border-white/10"
+      style={{ background: theme === 'dark' ? 'rgba(15,23,42,0.98)' : 'rgba(255,255,255,0.98)' }}
     >
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-        <span className="text-sm font-black text-white">Thông báo</span>
-        <button
-          onClick={onMarkAllRead}
-          className="flex items-center gap-1 text-[10px] font-bold text-cyan-500 hover:text-cyan-400 transition-colors"
-        >
-          <CheckCheck size={11} />
-          Đọc tất cả
+        <span className="text-sm font-black">Thông báo</span>
+        <button onClick={onMarkAllRead} className="text-[10px] font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1">
+          <CheckCheck size={11} /> Đọc tất cả
         </button>
       </div>
-
-      {/* List */}
       <div className="max-h-72 overflow-y-auto">
         {notifications.map((notif) => (
-          <div
-            key={notif.id}
-            className={`flex items-start gap-3 px-4 py-3 border-b border-white/[0.04] cursor-pointer transition-all ${
-              !notif.read ? 'bg-cyan-500/[0.04]' : 'hover:bg-white/[0.02]'
-            }`}
-          >
-            <span className="text-base mt-0.5 flex-shrink-0">{notif.icon}</span>
-            <div className="flex-1 min-w-0">
-              <p className={`text-xs leading-relaxed ${!notif.read ? 'text-slate-200' : 'text-slate-400'}`}>
-                {notif.text}
-              </p>
-              <p className="text-[9px] text-slate-600 mt-1 font-bold">{notif.time}</p>
+          <div key={notif.id} className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 ${!notif.read ? 'bg-cyan-500/5' : ''}`}>
+            <span className="text-base">{notif.icon}</span>
+            <div className="flex-1">
+              <p className={`text-xs ${!notif.read ? 'text-white' : 'text-slate-400'}`}>{notif.text}</p>
+              <p className="text-[9px] text-slate-500 mt-1">{notif.time}</p>
             </div>
-            {!notif.read && (
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0" />
-            )}
           </div>
         ))}
       </div>
-
-      {/* Footer */}
-      <button
-        onClick={onOpenSettings}
-        className="w-full py-2.5 text-[10px] font-black text-slate-500 hover:text-cyan-400 uppercase tracking-[0.15em] transition-colors"
-      >
-        Cài đặt thông báo →
-      </button>
     </motion.div>
   );
 }
 
-// ── User Dropdown ──
 function UserDropdown({ user, userProfile, rank, displayName, xp, theme, onProfile, onToggleTheme, onOpenSettings, onLogout }) {
   const menuItems = [
     { icon: User,          label: 'Hồ sơ cá nhân',    action: onProfile },
     { icon: LayoutDashboard, label: 'Dashboard',       action: onProfile },
     { icon: Settings,      label: 'Cài đặt',           action: onOpenSettings },
-    { icon: Sun,           label: 'Đổi giao diện',     action: onToggleTheme },
+    { icon: theme === 'dark' ? Sun : Moon, label: 'Đổi giao diện', action: onToggleTheme },
     { divider: true },
     { icon: LogOut,        label: 'Đăng xuất',         action: onLogout, danger: true },
   ];
@@ -452,79 +362,33 @@ function UserDropdown({ user, userProfile, rank, displayName, xp, theme, onProfi
       initial={{ opacity: 0, y: 8, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.95 }}
-      transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-      className="absolute right-0 top-[calc(100%+8px)] w-64 rounded-2xl overflow-hidden shadow-2xl z-[200]"
-      style={{
-        background: theme === 'dark' ? 'rgba(2,6,23,0.97)' : 'rgba(248,250,252,0.97)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-      }}
+      className="absolute right-0 top-[calc(100%+8px)] w-64 rounded-2xl overflow-hidden shadow-2xl z-[200] border border-white/10"
+      style={{ background: theme === 'dark' ? 'rgba(15,23,42,0.98)' : 'rgba(255,255,255,0.98)' }}
     >
-      {/* User info header */}
-      <div
-        className="p-4 border-b border-white/5"
-        style={{ background: `linear-gradient(135deg, ${rank.color}10, transparent)` }}
-      >
+      <div className="p-4 border-b border-white/5 bg-gradient-to-br from-cyan-500/10 to-transparent">
         <div className="flex items-center gap-3">
-          {user?.photoURL ? (
-            <img src={user.photoURL} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white"
-              style={{ background: `linear-gradient(135deg, ${rank.color}99, #6366f1)` }}
-            >
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white" style={{ background: `linear-gradient(135deg, ${rank.color}, #6366f1)` }}>
+            {displayName.charAt(0).toUpperCase()}
+          </div>
           <div>
-            <p className="text-sm font-black text-white truncate max-w-[150px]">{displayName}</p>
-            <p className="text-[10px] font-bold" style={{ color: rank.color }}>
-              {rank.emoji} {rank.name} · {xp} XP
-            </p>
+            <p className="text-sm font-black truncate max-w-[140px]">{displayName}</p>
+            <p className="text-[10px] font-bold" style={{ color: rank.color }}>{rank.emoji} {rank.name}</p>
           </div>
         </div>
-
-        {/* Quick stats */}
-        <div className="flex gap-2 mt-3">
-          {[
-            { label: 'XP', value: xp, icon: Zap, color: '#22d3ee' },
-            { label: 'Rank', value: rank.name.slice(0, 3), icon: Trophy, color: rank.color },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-              style={{ background: `${stat.color}12`, border: `1px solid ${stat.color}25` }}
-            >
-              <stat.icon size={10} style={{ color: stat.color }} />
-              <span className="text-[10px] font-black" style={{ color: stat.color }}>
-                {stat.value}
-              </span>
-            </div>
-          ))}
-        </div>
       </div>
-
-      {/* Menu items */}
-      <div className="py-1.5">
-        {menuItems.map((item, idx) => {
-          if (item.divider) {
-            return <div key={idx} className="my-1 border-t border-white/5" />;
-          }
-          return (
-            <button
-              key={idx}
-              onClick={item.action}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all
-                ${item.danger
-                  ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`}
-            >
-              <item.icon size={15} />
-              <span className="font-medium">{item.label}</span>
-            </button>
-          );
-        })}
+      <div className="py-1">
+        {menuItems.map((item, idx) => item.divider ? (
+          <div key={idx} className="my-1 border-t border-white/5" />
+        ) : (
+          <button
+            key={idx}
+            onClick={item.action}
+            className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-all ${item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+          >
+            <item.icon size={15} />
+            <span className="font-medium">{item.label}</span>
+          </button>
+        ))}
       </div>
     </motion.div>
   );

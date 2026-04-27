@@ -8,7 +8,7 @@ import { LogIn, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LoginPage() {
-  const { signInWithGoogle, loginWithGithub, login } = useAuth();
+  const { loginWithGoogle, loginWithGithub, login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +19,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      await signInWithGoogle();
+      await loginWithGoogle();
       navigate('/');
     } catch (err) {
       setError('Đăng nhập bằng Google thất bại. Vui lòng thử lại.');

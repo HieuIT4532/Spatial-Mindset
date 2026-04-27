@@ -7,7 +7,7 @@
 // =====================================================
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { auth, db, googleProvider, isFirebaseConfigured } from '../firebaseConfig';
+import { auth, db, googleProvider, githubProvider, isFirebaseConfigured } from '../firebaseConfig';
 
 const AuthContext = createContext(null);
 

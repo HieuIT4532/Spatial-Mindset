@@ -65,6 +65,7 @@ import Navbar from './components/Navbar';
 import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
 import { useUserSync } from './hooks/useUserSync';
+import useSettingsStore from './store/useSettingsStore';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -150,8 +151,17 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
   const [graphExpression, setGraphExpression] = useState('sin(x)');
   const [algebraData, setAlgebraData] = useState(null);
   const [showAlgebraSolution, setShowAlgebraSolution] = useState(false);
-  const [theme, setTheme] = useState('dark');
-  const [showAxes, setShowAxes] = useState(true);
+  
+  // Settings from Store
+  const { 
+    theme, 
+    setTheme, 
+    showAxes, 
+    setShowAxes, 
+    showGrid, 
+    antiAliasing, 
+    shadows 
+  } = useSettingsStore();
   const [uploadedImage, setUploadedImage] = useState(null);
   
   // Gamification state
@@ -500,7 +510,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
           onNavigate={(target) => {
             if (target === 'login') setIsAuthModalOpen(true);
           }}
-          onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+          onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         />
       )}
 
