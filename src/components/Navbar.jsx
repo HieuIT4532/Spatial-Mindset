@@ -10,6 +10,7 @@
 //  - User avatar dropdown
 // =====================================================
 
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 
 // ── Nav menu items ──
