@@ -22,7 +22,7 @@ export default function LoginPage() {
       await loginWithGoogle();
       navigate('/');
     } catch (err) {
-      setError('Đăng nhập bằng Google thất bại. Vui lòng thử lại.');
+      setError(err.message || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.');
       triggerShake();
     } finally {
       setLoading(false);
@@ -35,7 +35,7 @@ export default function LoginPage() {
       await loginWithGithub();
       navigate('/');
     } catch (err) {
-      setError('Đăng nhập bằng Github thất bại. Vui lòng thử lại.');
+      setError(err.message || 'Đăng nhập bằng Github thất bại. Vui lòng thử lại.');
       triggerShake();
     } finally {
       setLoading(false);

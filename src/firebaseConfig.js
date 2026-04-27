@@ -60,9 +60,14 @@ if (isFirebaseConfigured) {
   }
 } else {
   console.warn(
-    '⚠️ Firebase chưa được cấu hình. Thêm VITE_FIREBASE_* vào file .env\n' +
+    '⚠️ Firebase chưa được cấu hình. Thêm VITE_FIREBASE_* vào file .env hoặc Vercel Environment Variables.\n' +
     'App sẽ chạy ở chế độ offline (localStorage only).'
   );
+  console.log('Config check:', { 
+    hasApiKey: !!firebaseConfig.apiKey, 
+    hasAuthDomain: !!firebaseConfig.authDomain,
+    env: import.meta.env.MODE 
+  });
 }
 
 export { app, auth, db, storage, googleProvider, githubProvider, isFirebaseConfigured };

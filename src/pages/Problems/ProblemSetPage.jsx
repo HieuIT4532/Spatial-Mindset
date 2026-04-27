@@ -34,6 +34,8 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
+const TOPIC_TAGS = ['Khoảng cách', 'Góc', 'Thể tích', 'Thiết diện', 'Đồ thị hoá', 'Khối tròn xoay', 'Min-Max Hình học'];
+
 export default function ProblemSetPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -162,7 +164,7 @@ export default function ProblemSetPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] pt-20 px-6">
+    <div className="min-h-screen bg-white dark:bg-zinc-950 pt-20 px-6 pb-20">
       <div className="max-w-6xl mx-auto space-y-6">
         
         <div>
@@ -209,18 +211,31 @@ export default function ProblemSetPage() {
           </div>
         </div>
 
+        {/* Topic Tags */}
+        <div className="flex flex-wrap gap-2">
+          {TOPIC_TAGS.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setGlobalFilter(tag)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
         {/* Data Table */}
-        <div className="bg-white dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
           {(isProblemsLoading || isProgressLoading) ? (
             <div className="p-8 text-center text-slate-500">Đang tải dữ liệu...</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 dark:bg-zinc-900/50 text-slate-500 border-b border-slate-200 dark:border-zinc-800">
+                <thead className="bg-slate-50 dark:bg-zinc-900/30 text-slate-500 border-b border-slate-200 dark:border-zinc-800">
                   {table.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
-                        <th key={header.id} className="px-6 py-4 font-semibold whitespace-nowrap">
+                        <th key={header.id} className="px-4 py-3 font-semibold whitespace-nowrap">
                           {header.isPlaceholder
                             ? null
                             : flexRender(
@@ -240,7 +255,7 @@ export default function ProblemSetPage() {
                         className="hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition-colors"
                       >
                         {row.getVisibleCells().map(cell => (
-                          <td key={cell.id} className="px-6 py-4">
+                          <td key={cell.id} className="px-4 py-3">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         ))}
@@ -248,7 +263,7 @@ export default function ProblemSetPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={columns.length} className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-500">
                         Không tìm thấy bài tập nào phù hợp.
                       </td>
                     </tr>
