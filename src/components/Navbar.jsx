@@ -10,49 +10,22 @@
 //  - User avatar dropdown
 // =====================================================
 
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Search, Bell, Flame, User, LogOut, LogIn,
-  Settings, Sun, Moon, ChevronDown, LayoutDashboard,
-  Trophy, BookOpen, Users, Sliders, Share2,
-  X, CheckCheck, Zap, Star
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { getRankInfo } from './GameHUD';
-import useSettingsStore from '../stores/useSettingsStore';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 
 // ── Nav menu items ──
 const NAV_ITEMS = [
-  { id: 'problems',  label: 'Problems',  labelVi: 'Bài tập',    action: 'exercise-bank' },
-  { id: 'contest',   label: 'Contest',   labelVi: 'Thi đấu',    action: 'daily-challenge' },
-  { id: 'discuss',   label: 'Discuss',   labelVi: 'Thảo luận',  action: 'gallery' },
+  { id: 'problems',  label: 'Problems',  labelVi: 'Bài tập',    action: '/problems' },
+  { id: 'contest',   label: 'Contest',   labelVi: 'Thi đấu',    action: '/contest' },
+  { id: 'discuss',   label: 'Discuss',   labelVi: 'Thảo luận',  action: '/discuss' },
 ];
 
-// ── Mock notifications ──
-const MOCK_NOTIFICATIONS = [
-  { id: 1, read: false, icon: '🔥', text: 'Streak 7 ngày! Bạn đang làm tốt lắm!', time: '2 phút trước' },
-  { id: 2, read: false, icon: '🏆', text: 'Bạn vừa lên hạng Bronze!', time: '1 giờ trước' },
-  { id: 3, read: true,  icon: '💬', text: 'HieuIT đã reply trong Discuss', time: '3 giờ trước' },
-  { id: 4, read: true,  icon: '⚡', text: 'Daily Challenge mới đã sẵn sàng', time: 'Hôm qua' },
-];
-
+// ... (skip down to the main Navbar component)
 export default function Navbar({
-  // Gamification
   xp = 0,
   streak = 0,
-  // Callbacks
   onOpenCommandPalette,
-  onOpenProfile,
   onOpenNotifications,
-  onNavigate,
-  onToggleTheme,
-  onOpenExerciseBank,
-  onOpenDailyChallenge,
-  onOpenGallery,
-  // State
   theme = 'dark',
-  activeNavItem = null,
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -60,6 +33,9 @@ export default function Navbar({
   const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef(null);
   const notifRef = useRef(null);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const { user, isAuthenticated, logout, userProfile, isOfflineMode } = useAuth();
   const { current: rank } = getRankInfo(xp);
@@ -91,10 +67,8 @@ export default function Navbar({
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const handleNavClick = (item) => {
-    if (item.action === 'exercise-bank') onOpenExerciseBank?.();
-    if (item.action === 'daily-challenge') onOpenDailyChallenge?.();
-    if (item.action === 'gallery') onOpenGallery?.();
+  const handleNavClick = (path) => {
+    navigate(path);
   };
 
   const displayName = user?.displayName
@@ -127,9 +101,8 @@ export default function Navbar({
           {/* ── LEFT: Logo + Brand ── */}
           <div className="flex items-center gap-5 flex-shrink-0">
             {/* Logo mark */}
-            <a
-              href="#"
-              onClick={(e) => { e.preventDefault(); }}
+            <NavLink
+              to="/"
               className="flex items-center gap-2.5 group"
             >
               <img
@@ -148,7 +121,7 @@ export default function Navbar({
               >
                 SpatialMind
               </span>
-            </a>
+            </NavLink>
 
             {/* Divider */}
             <div className="h-5 w-px bg-white/10 hidden md:block" />
@@ -156,13 +129,34 @@ export default function Navbar({
             {/* ── Nav menu items ── */}
             <nav className="hidden md:flex items-center gap-1">
               {NAV_ITEMS.map((item) => (
-                <NavItem
+                <NavLink
                   key={item.id}
-                  item={item}
-                  isActive={activeNavItem === item.id}
-                  theme={theme}
-                  onClick={() => handleNavClick(item)}
-                />
+                  to={item.action}
+                  className={({ isActive }) => `
+                    relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all group
+                    ${isActive 
+                      ? (theme === 'dark' ? 'text-slate-100' : 'text-slate-900') 
+                      : (theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black')}
+                  `}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className="relative z-10">{item.label}</span>
+                      {isActive && (
+                        <motion.div
+                          layoutId="nav-underline"
+                          className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+                          style={{ background: 'linear-gradient(90deg, #22d3ee, #6366f1)' }}
+                          transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
+                        />
+                      )}
+                      <span
+                        className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}
+                      />
+                    </>
+                  )}
+                </NavLink>
               ))}
             </nav>
           </div>
@@ -228,7 +222,7 @@ export default function Navbar({
 
             {/* ── Streak badge ── */}
             <button
-              onClick={onOpenDailyChallenge}
+              onClick={() => navigate('/contest')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-orange-500/10 transition-all group"
               title={`Streak: ${streak} ngày liên tiếp`}
             >
@@ -268,21 +262,12 @@ export default function Navbar({
                   <NotificationPanel
                     notifications={notifications}
                     onMarkAllRead={markAllRead}
-                    onOpenSettings={onOpenNotifications}
+                    onOpenSettings={() => { setIsNotifOpen(false); navigate('/settings/profile'); }}
                     theme={theme}
                   />
                 )}
               </AnimatePresence>
             </div>
-
-            {/* ── Theme toggle ── */}
-            <button
-              onClick={onToggleTheme}
-              className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-yellow-400 transition-all"
-              title="Đổi giao diện"
-            >
-              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
 
             {/* ── User area ── */}
             <div className="relative ml-1" ref={dropdownRef}>
@@ -327,7 +312,7 @@ export default function Navbar({
                 </button>
               ) : (
                 <button
-                  onClick={() => onNavigate?.('login')}
+                  onClick={() => navigate('/login')}
                   className="flex items-center gap-2 px-4 py-1.5 rounded-xl font-bold text-xs transition-all"
                   style={{
                     background: 'linear-gradient(135deg, rgba(34,211,238,0.15), rgba(99,102,241,0.15))',
@@ -350,10 +335,9 @@ export default function Navbar({
                     displayName={displayName}
                     xp={xp}
                     theme={theme}
-                    onProfile={() => { onOpenProfile?.(); setIsDropdownOpen(false); }}
-                    onToggleTheme={() => { onToggleTheme?.(); }}
-                    onOpenSettings={() => { useSettingsStore.getState().openSettings('profile'); setIsDropdownOpen(false); }}
-                    onLogout={() => { logout(); setIsDropdownOpen(false); }}
+                    onProfile={() => { setIsDropdownOpen(false); navigate('/settings/profile'); }}
+                    onOpenSettings={() => { setIsDropdownOpen(false); navigate('/settings/appearance'); }}
+                    onLogout={() => { logout(); setIsDropdownOpen(false); navigate('/'); }}
                   />
                 )}
               </AnimatePresence>
@@ -365,41 +349,6 @@ export default function Navbar({
       {/* Spacer so content doesn't hide under fixed header */}
       <div className="h-14 flex-shrink-0" />
     </>
-  );
-}
-
-// ── Nav Item Component ──
-function NavItem({ item, isActive, theme, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="relative px-3 py-1.5 text-sm font-medium rounded-lg transition-all group"
-      style={{
-        color: isActive
-          ? (theme === 'dark' ? '#f8fafc' : '#0f172a')
-          : (theme === 'dark' ? '#64748b' : '#64748b'),
-      }}
-    >
-      <span className="relative z-10 group-hover:text-white transition-colors">
-        {item.label}
-      </span>
-
-      {/* Active underline */}
-      {isActive && (
-        <motion.div
-          layoutId="nav-underline"
-          className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
-          style={{ background: 'linear-gradient(90deg, #22d3ee, #6366f1)' }}
-          transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
-        />
-      )}
-
-      {/* Hover bg */}
-      <span
-        className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}
-      />
-    </button>
   );
 }
 

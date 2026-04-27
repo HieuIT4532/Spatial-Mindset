@@ -62,12 +62,6 @@ import CommandPalette from './components/CommandPalette';
 import CommunityGallery from './components/CommunityGallery';
 import NotificationSettings from './components/NotificationSettings';
 import Navbar from './components/Navbar';
-import SettingsPanel from './components/Settings/SettingsPanel';
-import ProblemList from './pages/Problems/ProblemList';
-import ProblemWorkspace from './pages/Problems/ProblemWorkspace';
-import ContestList from './pages/Contest/ContestList';
-import DiscussForum from './pages/Discuss/DiscussForum';
-import useSettingsStore from './stores/useSettingsStore';
 import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
 import { useUserSync } from './hooks/useUserSync';
@@ -179,8 +173,6 @@ export default function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(null); // 'problems', 'contest', 'discuss'
-  const [activeProblem, setActiveProblem] = useState(null);
   const [solvedProblems, setSolvedProblems] = useState(() => {
     return parseInt(localStorage.getItem('spatialmind_solved') || '0', 10);
   });
@@ -498,13 +490,12 @@ export default function App() {
         xp={xp}
         streak={streak}
         theme={theme}
-        activeNavItem={activeTab || activeMode}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
         onOpenNotifications={() => setIsNotificationOpen(true)}
-        onOpenExerciseBank={() => setActiveTab('problems')}
-        onOpenDailyChallenge={() => setActiveTab('contest')}
-        onOpenGallery={() => setActiveTab('discuss')}
+        onOpenExerciseBank={() => setIsExerciseBankOpen(true)}
+        onOpenDailyChallenge={() => setShowDailyChallenge(true)}
+        onOpenGallery={() => setIsGalleryOpen(true)}
         onNavigate={(target) => {
           if (target === 'login') setIsAuthModalOpen(true);
         }}
@@ -1004,54 +995,8 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/10 blur-[120px] rounded-full translate-y-1/2 -translate-x-1/2" />
         </div>
 
-        {/* ── Tabs Layer ── */}
-        {activeTab === 'problems' && (
-          <div className="absolute inset-0 z-20 bg-transparent flex justify-center backdrop-blur-sm">
-            <ProblemList onSelectProblem={(p) => { setActiveProblem(p); setActiveTab('problem-workspace'); }} />
-          </div>
-        )}
-        {activeTab === 'contest' && (
-          <div className="absolute inset-0 z-20 bg-transparent flex justify-center backdrop-blur-sm">
-            <ContestList />
-          </div>
-        )}
-        {activeTab === 'discuss' && (
-          <div className="absolute inset-0 z-20 bg-transparent flex justify-center backdrop-blur-sm">
-            <DiscussForum />
-          </div>
-        )}
-        
-        {/* If problem-workspace is active, we render ProblemWorkspace which wraps the Canvas */}
-        {activeTab === 'problem-workspace' && activeProblem ? (
-          <div className="absolute inset-0 z-20 bg-transparent">
-            <ProblemWorkspace 
-              problem={activeProblem} 
-              onBack={() => setActiveTab('problems')}
-              renderCanvas={() => (
-                <Canvas dpr={[1, 2]} shadows={useSettingsStore.getState().workspace.shadows} gl={{ antialias: useSettingsStore.getState().workspace.antiAliasing }}>
-                  <Suspense fallback={<SceneLoader />}>
-                    <PerspectiveCamera makeDefault fov={45} position={[8, 6, 12]} />
-                    <color attach="background" args={[useSettingsStore.getState().workspace.backgroundColor || (theme === 'dark' ? '#020617' : '#e0f2fe')]} />
-                    <ambientLight intensity={theme === 'dark' ? 0.8 : 1.0} />
-                    <spotLight position={[10, 20, 10]} intensity={2} angle={0.3} penumbra={1} castShadow />
-                    <pointLight position={[-10, 10, -10]} intensity={theme === 'dark' ? 2 : 1.5} color="#22d3ee" />
-                    <pointLight position={[5, -5, 5]} intensity={1} color="#0ea5e9" />
-                    <group position={[0, -1, 0]}>
-                      {(activeMode === 'GEOMETRY' || activeMode === 'VECTOR') && geometryData && (
-                        <GeometryViewer data={geometryData} currentStep={activeStep} theme={theme} showAxes={showAxes} />
-                      )}
-                      <ContactShadows resolution={1024} scale={20} blur={2} opacity={0.2} far={10} color="#000000" />
-                    </group>
-                    <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.06} minDistance={3} maxDistance={30} autoRotate={false} />
-                  </Suspense>
-                </Canvas>
-              )}
-            />
-          </div>
-        ) : (
-          /* Normal Canvas or Graph View */
-          <>
-            {activeMode === 'GRAPH' ? (
+        {/* Views based on activeMode */}
+        {activeMode === 'GRAPH' ? (
           <div className="absolute inset-0 z-10 p-12 flex items-center justify-center">
             {geometryData?.type === '2D' ? (
               <Graph2DViewer functions={geometryData.functions} />
@@ -1060,10 +1005,10 @@ export default function App() {
             )}
           </div>
         ) : (
-          <Canvas dpr={[1, 2]} shadows={useSettingsStore.getState().workspace.shadows} gl={{ antialias: useSettingsStore.getState().workspace.antiAliasing }}>
+          <Canvas dpr={[1, 2]} shadows gl={{ antialias: true }}>
             <Suspense fallback={<SceneLoader />}>
               <PerspectiveCamera makeDefault fov={45} position={[8, 6, 12]} />
-              <color attach="background" args={[useSettingsStore.getState().workspace.backgroundColor || (theme === 'dark' ? '#020617' : '#e0f2fe')]} />
+              <color attach="background" args={[theme === 'dark' ? '#020617' : '#e0f2fe']} />
               
               <ambientLight intensity={theme === 'dark' ? 0.8 : 1.0} />
               <spotLight position={[10, 20, 10]} intensity={2} angle={0.3} penumbra={1} castShadow />
@@ -1118,11 +1063,8 @@ export default function App() {
             </Suspense>
           </Canvas>
         )}
-        </>
-        )}
 
-        {/* Socratic Input Overlay */}
-        {activeMode === 'GEOMETRY' && !geometryData && activeTab !== 'problem-workspace' && activeTab !== 'problems' && activeTab !== 'contest' && activeTab !== 'discuss' && (
+        {activeMode === 'GEOMETRY' && !geometryData && (
           <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
             <motion.div 
               animate={{ y: [0, -4, 0] }}
@@ -1242,9 +1184,6 @@ export default function App() {
           displayName: user?.displayName || userProfile?.displayName || '',
         }}
       />
-
-      {/* ── v3.0: Settings Panel (Zustand-managed) ── */}
-      <SettingsPanel />
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar {
