@@ -57,6 +57,7 @@ import ProfileDashboard from './components/ProfileDashboard';
 import LandingPage from './components/LandingPage';
 import TheoryPanel from './components/TheoryPanel';
 import ExerciseBank from './components/ExerciseBank';
+import ExercisePanel from './components/ExercisePanel';
 import AuthModal from './components/AuthModal';
 import CommandPalette from './components/CommandPalette';
 import CommunityGallery from './components/CommunityGallery';
@@ -165,7 +166,9 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isTheoryOpen, setIsTheoryOpen] = useState(false);
   const [isExerciseBankOpen, setIsExerciseBankOpen] = useState(false);
+  const [isExercisePanelOpen, setIsExercisePanelOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
+  const [activeWorkspaceQuestion, setActiveWorkspaceQuestion] = useState(null);
   const [explorerPendingGenerate, setExplorerPendingGenerate] = useState(false);
 
   // ── New v3.0 State ──
@@ -486,29 +489,32 @@ export default function App() {
       </AnimatePresence>
 
       {/* ── v3.0 Navbar ── */}
-      <Navbar
-        xp={xp}
-        streak={streak}
-        theme={theme}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-        onOpenNotifications={() => setIsNotificationOpen(true)}
-        onOpenExerciseBank={() => setIsExerciseBankOpen(true)}
-        onOpenDailyChallenge={() => setShowDailyChallenge(true)}
-        onOpenGallery={() => setIsGalleryOpen(true)}
-        onNavigate={(target) => {
-          if (target === 'login') setIsAuthModalOpen(true);
-        }}
-        onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-      />
+      {!activeWorkspaceQuestion && (
+        <Navbar
+          xp={xp}
+          streak={streak}
+          theme={theme}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenNotifications={() => setIsNotificationOpen(true)}
+          onOpenExerciseBank={() => setIsExerciseBankOpen(true)}
+          onOpenDailyChallenge={() => setShowDailyChallenge(true)}
+          onOpenGallery={() => setIsGalleryOpen(true)}
+          onNavigate={(target) => {
+            if (target === 'login') setIsAuthModalOpen(true);
+          }}
+          onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        />
+      )}
 
       {/* 🌟 Particle Celebration */}
       <ParticleEffect trigger={particleTrigger} />
 
       {/* ── Mode switcher sub-bar (dưới Navbar) ── */}
-      <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
-        style={{ background: 'rgba(2,6,23,0.7)', backdropFilter: 'blur(12px)' }}
-      >
+      {!activeWorkspaceQuestion && (
+        <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
+          style={{ background: 'rgba(2,6,23,0.7)', backdropFilter: 'blur(12px)' }}
+        >
         {/* Mode tabs */}
         <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
           {[
@@ -562,11 +568,13 @@ export default function App() {
           >
             <LayoutDashboard size={12} /> Axes
           </button>
+          </button>
         </div>
-      </div>
+      )}
 
       {/* 🔮 Floating Sidebar — pushed below Navbar + sub-bar (14+8=22 = top-[88px]) */}
-      <motion.div 
+      {!activeWorkspaceQuestion && (
+        <motion.div 
         initial={false}
         animate={{ 
           width: isSidebarCollapsed ? 80 : 380,
@@ -869,6 +877,107 @@ export default function App() {
           </div>
         </div>
       </motion.div>
+      )}
+
+      {/* 📚 Exercise Workspace Sidebar */}
+      {activeWorkspaceQuestion && (
+        <div className="fixed top-14 left-0 w-[400px] bg-[#0a0a0a] border-r border-white/5 h-[calc(100vh-56px)] z-50 flex flex-col shadow-2xl">
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="text-slate-200 text-sm leading-relaxed markdown-theory mb-6">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {preprocessLatex(activeWorkspaceQuestion.content)}
+              </ReactMarkdown>
+            </div>
+            <div className="flex flex-col gap-3">
+              {activeWorkspaceQuestion.options.map((opt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    const newQ = { ...activeWorkspaceQuestion, selectedAnswer: opt.label };
+                    setActiveWorkspaceQuestion(newQ);
+                  }}
+                  className={`p-4 rounded-xl border text-left text-sm transition-all flex gap-3 ${
+                    activeWorkspaceQuestion.selectedAnswer === opt.label
+                      ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                      : 'bg-white/5 hover:bg-white/10 border-white/5 text-slate-300'
+                  }`}
+                >
+                  <span className="font-black text-emerald-400">{opt.label}.</span>
+                  <div className="flex-1 markdown-theory">
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      {preprocessLatex(opt.text)}
+                    </ReactMarkdown>
+                  </div>
+                  {activeWorkspaceQuestion.selectedAnswer === opt.label && quizResult === 'correct' && (
+                    <CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-1" />
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="mt-8 p-5 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl">
+              <h3 className="text-cyan-400 text-xs font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                <Lightbulb size={14} /> AI Socratic Hint
+              </h3>
+              <p className="text-cyan-200/80 text-[11px] leading-relaxed">
+                {hintData ? (
+                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {preprocessLatex(hintData)}
+                  </ReactMarkdown>
+                ) : 'Hãy thử nhấn "Chạy thử" để xem cách dựng hình 3D và gợi ý chi tiết từ AI. Bạn cần tôi gợi ý thêm về cách xác định các yếu tố cơ bản không?'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom TopBar for Exercise Workspace */}
+      {activeWorkspaceQuestion && (
+        <div className="fixed top-0 left-0 right-0 h-14 bg-[#050505] border-b border-white/5 z-[100] flex items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => {
+                setActiveWorkspaceQuestion(null);
+                setGeometryData(null);
+                setQuizResult(null);
+              }}
+              className="p-2 -ml-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex items-center gap-3">
+              <h2 className="text-white font-bold text-sm tracking-wide">
+                Câu {activeWorkspaceQuestion.id}: Bài tập luyện tập
+              </h2>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase tracking-widest">
+                Easy
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={handleGenerate}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/30 text-xs font-black uppercase tracking-wider hover:bg-violet-500/20 transition-all"
+            >
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              Chạy thử
+            </button>
+            <button 
+              onClick={() => {
+                if (activeWorkspaceQuestion.selectedAnswer) {
+                  gainXP(20);
+                  setParticleTrigger(t => t + 1);
+                  setQuizResult('correct');
+                }
+              }}
+              className="flex items-center gap-2 px-6 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+            >
+              <CheckCircle2 size={14} />
+              Submit
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 🧊 Vertical Solution Panel (Graph mode) */}
       <AnimatePresence>
@@ -1144,9 +1253,29 @@ export default function App() {
           setIsExerciseBankOpen(false);
           setIsTheoryOpen(true);
         }}
+        onSelectExercise={(lesson) => {
+          setSelectedLesson(lesson);
+          setIsExerciseBankOpen(false);
+          setIsExercisePanelOpen(true);
+        }}
         onSendToAI={(problem) => {
           setPromptInput(problem);
           setIsExerciseBankOpen(false);
+        }}
+      />
+      
+      <ExercisePanel
+        isOpen={isExercisePanelOpen}
+        onClose={() => setIsExercisePanelOpen(false)}
+        lesson={selectedLesson}
+        onXPgain={(amount) => {
+          gainXP(amount);
+        }}
+        onSolveExercise={(question) => {
+          setIsExercisePanelOpen(false);
+          setActiveWorkspaceQuestion(question);
+          setPromptInput(question.content); // Pre-fill the prompt input
+          setActiveMode('GEOMETRY');
         }}
       />
 
