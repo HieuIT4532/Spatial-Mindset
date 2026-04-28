@@ -414,9 +414,13 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
           ? `${baseUrl}/api/geometry/calculate`
           : 'http://localhost:8000/api/geometry/calculate';
 
-        const query = activeMode === 'VECTOR'
+        let query = activeMode === 'VECTOR'
           ? `${promptInput} (Hãy xử lý bài toán này dưới góc độ vector không gian, vẽ các mũi tên vector)`
           : promptInput;
+
+        // Strip out multiple choice options (A., B., C., D.) before sending to the NLP backend
+        // to prevent 500 Internal Server Errors caused by parsing conflicts with geometric points.
+        query = query.split(/\n\s*[A-D]\./)[0].trim();
 
         const response = await axios.post(apiUrl, {
           query,

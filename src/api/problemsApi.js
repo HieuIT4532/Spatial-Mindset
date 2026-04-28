@@ -11,7 +11,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 85.2,
     totalSubmissions: 3120,
     isPremium: false,
-    content: "Cho hình chóp S.ABCD có đáy là hình vuông, $SA \\perp (ABCD)$. Góc giữa đường thẳng SC và mặt phẳng (ABCD) là:\n\nA. $\\widehat{SCD}$ \nB. $\\widehat{CAS}$ \nC. $\\widehat{SCA}$ \nD. $\\widehat{ASC}$"
+    content: "Cho hình chóp S.ABCD có đáy là hình vuông, $SA \\perp (ABCD)$. Hãy xác định góc giữa đường thẳng SC và mặt phẳng (ABCD)."
   },
   {
     id: "cau-2",
@@ -21,7 +21,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 65.5,
     totalSubmissions: 2840,
     isPremium: false,
-    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = a$. Tính góc giữa SD và mặt đáy (ABCD).\n\nA. $60^\\circ$ \nB. $30^\\circ$ \nC. $90^\\circ$ \nD. $45^\\circ$"
+    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = a$. Tính góc giữa SD và mặt đáy (ABCD)."
   },
   {
     id: "cau-3",
@@ -31,7 +31,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 58.2,
     totalSubmissions: 2150,
     isPremium: false,
-    content: "Cho hình chóp S.ABC có $SA \\perp (ABC)$, $SA = 2a$. Tam giác ABC vuông tại B, $AB = a\\sqrt{3}$ và $BC = a$. Tính góc giữa đường thẳng SC và mặt phẳng (ABC).\n\nA. $90^\\circ$ \nB. $45^\\circ$ \nC. $30^\\circ$ \nD. $65^\\circ$"
+    content: "Cho hình chóp S.ABC có $SA \\perp (ABC)$, $SA = 2a$. Tam giác ABC vuông tại B, $AB = a\\sqrt{3}$ và $BC = a$. Tính góc giữa đường thẳng SC và mặt phẳng (ABC)."
   },
   {
     id: "cau-4",
@@ -41,7 +41,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 62.1,
     totalSubmissions: 4500,
     isPremium: false,
-    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a\\sqrt{3}$, $SA \\perp (ABCD)$ và $SA = a\\sqrt{2}$. Tính góc giữa SC và mặt phẳng (ABCD).\n\nA. $45^\\circ$ \nB. $30^\\circ$ \nC. $60^\\circ$ \nD. $90^\\circ$"
+    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a\\sqrt{3}$, $SA \\perp (ABCD)$ và $SA = a\\sqrt{2}$. Tính góc giữa SC và mặt phẳng (ABCD)."
   },
   {
     id: "cau-5",
@@ -51,7 +51,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 60.5,
     totalSubmissions: 3900,
     isPremium: false,
-    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SB = 2a$. Góc giữa đường thẳng SB và mặt phẳng đáy bằng:\n\nA. $60^\\circ$ \nB. $30^\\circ$ \nC. $90^\\circ$ \nD. $45^\\circ$"
+    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SB = 2a$. Tính góc giữa đường thẳng SB và mặt phẳng đáy."
   },
   {
     id: "cau-6",
@@ -61,7 +61,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 45.8,
     totalSubmissions: 1200,
     isPremium: false,
-    content: "Cho hình chóp S.ABCD có đáy là hình chữ nhật ABCD có $AB = a$, $AD = 2a$. Cạnh $SA = a\\sqrt{6}$ và vuông góc với mặt phẳng đáy. Gọi M là trung điểm của BC. Tính góc giữa SM và (ABCD).\n\nA. $60^\\circ$ \nB. $30^\\circ$ \nC. $90^\\circ$ \nD. $45^\\circ$"
+    content: "Cho hình chóp S.ABCD có đáy là hình chữ nhật ABCD có $AB = a$, $AD = 2a$. Cạnh $SA = a\\sqrt{6}$ và vuông góc với mặt phẳng đáy. Gọi M là trung điểm của BC. Tính góc giữa SM và (ABCD)."
   },
   {
     id: "cau-7",
@@ -71,7 +71,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 42.5,
     totalSubmissions: 1560,
     isPremium: true,
-    content: "Cho hình chóp S.ABCD có đáy ABCD là hình chữ nhật, $AB = a$, $BC = 2a$. Hai mặt bên (SAB), (SAD) cùng vuông góc với mặt phẳng (ABCD) và $SA = a\\sqrt{15}$. Góc tạo bởi SC và mặt phẳng (ABCD) là:\n\nA. $30^\\circ$ \nB. $90^\\circ$ \nC. $120^\\circ$ \nD. $60^\\circ$"
+    content: "Cho hình chóp S.ABCD có đáy ABCD là hình chữ nhật, $AB = a$, $BC = 2a$. Hai mặt bên (SAB), (SAD) cùng vuông góc với mặt phẳng (ABCD) và $SA = a\\sqrt{15}$. Tính góc tạo bởi SC và mặt phẳng (ABCD)."
   },
   {
     id: "cau-8",
@@ -81,7 +81,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 55.0,
     totalSubmissions: 2200,
     isPremium: false,
-    content: "Cho hình chóp S.ABCD có đáy ABCD là hình chữ nhật, cạnh $AB = a$, $AD = 2a$, $SA \\perp (ABCD)$, $SA = 5a$. Tính $\\tan$ góc giữa SC và mặt phẳng (ABCD).\n\nA. $\\sqrt{5}$ \nB. $\\sqrt{6}$ \nC. $\\sqrt{3}$ \nD. $3$"
+    content: "Cho hình chóp S.ABCD có đáy ABCD là hình chữ nhật, cạnh $AB = a$, $AD = 2a$, $SA \\perp (ABCD)$, $SA = 5a$. Tính $\\tan$ góc giữa SC và mặt phẳng (ABCD)."
   },
   {
     id: "cau-14",
@@ -91,7 +91,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 35.5,
     totalSubmissions: 1100,
     isPremium: true,
-    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = 2a\\sqrt{3}$. Tính số đo của góc nhị diện [S, CD, A].\n\nA. $45^\\circ$ \nB. $30^\\circ$ \nC. $90^\\circ$ \nD. $60^\\circ$"
+    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = 2a\\sqrt{3}$. Tính số đo của góc nhị diện [S, CD, A]."
   },
   {
     id: "cau-19",
@@ -101,7 +101,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 15.2,
     totalSubmissions: 3500,
     isPremium: false,
-    content: "Cho hình chóp đều S.ABCD có đáy là hình vuông ABCD tâm O cạnh $2a$, cạnh bên $SA = a\\sqrt{5}$. Khoảng cách giữa BD và SC là:\n\nA. $\\frac{a\\sqrt{15}}{5}$ \nB. $\\frac{a\\sqrt{30}}{5}$ \nC. $\\frac{a\\sqrt{15}}{6}$ \nD. $\\frac{a\\sqrt{30}}{6}$"
+    content: "Cho hình chóp đều S.ABCD có đáy là hình vuông ABCD tâm O cạnh $2a$, cạnh bên $SA = a\\sqrt{5}$. Tính khoảng cách giữa BD và SC."
   },
   {
     id: "cau-20",
@@ -111,7 +111,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 18.4,
     totalSubmissions: 2800,
     isPremium: false,
-    content: "Cho tứ diện đều ABCD cạnh $a\\sqrt{3}$. Khoảng cách giữa hai đường thẳng AB và CD bằng:\n\nA. $\\frac{a\\sqrt{6}}{4}$ \nB. $\\frac{a\\sqrt{6}}{2}$ \nC. $\\frac{a\\sqrt{3}}{2}$ \nD. $\\frac{a\\sqrt{6}}{3}$"
+    content: "Cho tứ diện đều ABCD cạnh $a\\sqrt{3}$. Tính khoảng cách giữa hai đường thẳng AB và CD."
   },
   {
     id: "cau-22",
@@ -121,7 +121,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 12.5,
     totalSubmissions: 4100,
     isPremium: true,
-    content: "Cho hình chóp S.ABC có đáy ABC là tam giác vuông cân tại B, $AB = a$, cạnh bên SA vuông góc với mặt phẳng đáy, góc tạo bởi hai mặt phẳng (ABC) và (SBC) bằng $60^\\circ$. Khoảng cách giữa hai đường thẳng AB và SC bằng:\n\nA. $\\frac{a\\sqrt{2}}{2}$ \nB. $a$ \nC. $\\frac{a\\sqrt{3}}{3}$ \nD. $\\frac{a\\sqrt{3}}{2}$"
+    content: "Cho hình chóp S.ABC có đáy ABC là tam giác vuông cân tại B, $AB = a$, cạnh bên SA vuông góc với mặt phẳng đáy, góc tạo bởi hai mặt phẳng (ABC) và (SBC) bằng $60^\\circ$. Tính khoảng cách giữa hai đường thẳng AB và SC."
   },
   {
     id: "cau-27",
@@ -131,7 +131,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 9.8,
     totalSubmissions: 5020,
     isPremium: true,
-    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $2a$, $SA \\perp (ABCD)$. Gọi M là trung điểm của cạnh CD, biết $SA = a\\sqrt{5}$. Khoảng cách giữa hai đường thẳng SD và BM là:\n\nA. $\\frac{2a\\sqrt{39}}{3}$ \nB. $\\frac{2a\\sqrt{145}}{15}$ \nC. $\\frac{2a\\sqrt{39}}{13}$ \nD. $\\frac{2a\\sqrt{145}}{29}$"
+    content: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh $2a$, $SA \\perp (ABCD)$. Gọi M là trung điểm của cạnh CD, biết $SA = a\\sqrt{5}$. Tính khoảng cách giữa hai đường thẳng SD và BM."
   },
   {
     id: "cau-30",
@@ -141,7 +141,7 @@ export const MOCK_PROBLEMS = [
     acceptanceRate: 8.5,
     totalSubmissions: 2500,
     isPremium: false,
-    content: "Cho khối chóp S.ABC có đáy ABC là tam giác vuông cân tại A, $AB = a$, $\\widehat{SBA} = \\widehat{SCA} = 90^\\circ$, góc giữa hai mặt phẳng (SAB) và (SAC) bằng $60^\\circ$. Thể tích của khối chóp đã cho bằng:\n\nA. $\\frac{a^3}{3}$ \nB. $a^3$ \nC. $\\frac{a^3}{2}$ \nD. $\\frac{a^3}{6}$"
+    content: "Cho khối chóp S.ABC có đáy ABC là tam giác vuông cân tại A, $AB = a$, $\\widehat{SBA} = \\widehat{SCA} = 90^\\circ$, góc giữa hai mặt phẳng (SAB) và (SAC) bằng $60^\\circ$. Tính thể tích của khối chóp đã cho."
   },
   {
     id: "pending-1",
