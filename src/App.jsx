@@ -499,7 +499,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       </AnimatePresence>
 
       {/* ── v3.0 Navbar ── */}
-      {!isWorkspaceMode && (
+      {!isWorkspaceMode && !activeWorkspaceQuestion && (
         <Navbar
           xp={xp}
           streak={streak}
@@ -514,23 +514,6 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
             if (target === 'login') setIsAuthModalOpen(true);
           }}
           onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        />
-      )}
-      {!activeWorkspaceQuestion && (
-        <Navbar
-          xp={xp}
-          streak={streak}
-          theme={theme}
-          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-          onOpenProfile={() => setIsProfileOpen(true)}
-          onOpenNotifications={() => setIsNotificationOpen(true)}
-          onOpenExerciseBank={() => setIsExerciseBankOpen(true)}
-          onOpenDailyChallenge={() => setShowDailyChallenge(true)}
-          onOpenGallery={() => setIsGalleryOpen(true)}
-          onNavigate={(target) => {
-            if (target === 'login') setIsAuthModalOpen(true);
-          }}
-          onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
         />
       )}
 
@@ -591,9 +574,8 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
           >
             <LayoutDashboard size={12} /> Axes
           </button>
-        </button>
+        </div>
       </div>
-    </div>
 
       {/* 🔮 Floating Sidebar — pushed below Navbar + sub-bar (14+8=22 = top-[88px]) */ }
   <motion.div
@@ -773,8 +755,8 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
                     </span>
                     {geometryData.difficulty && (
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${geometryData.difficulty === 'easy' ? 'text-emerald-400 bg-emerald-500/10' :
-                          geometryData.difficulty === 'medium' ? 'text-yellow-400 bg-yellow-500/10' :
-                            'text-red-400 bg-red-500/10'
+                        geometryData.difficulty === 'medium' ? 'text-yellow-400 bg-yellow-500/10' :
+                          'text-red-400 bg-red-500/10'
                         }`}>
                         {geometryData.difficulty === 'easy' ? 'Dễ' : geometryData.difficulty === 'medium' ? 'Vừa' : 'Khó'}
                       </span>
@@ -790,8 +772,8 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
                       transition={{ delay: idx * 0.05 }}
                       onClick={() => handleStepClick(idx)}
                       className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${activeStep >= idx + 1
-                          ? 'bg-cyan-500/10 border-cyan-500/30'
-                          : 'bg-[var(--glass-bg)] border-transparent opacity-40 grayscale hover:opacity-100'
+                        ? 'bg-cyan-500/10 border-cyan-500/30'
+                        : 'bg-[var(--glass-bg)] border-transparent opacity-40 grayscale hover:opacity-100'
                         }`}
                     >
                       {completedSteps.has(idx) && (
@@ -843,12 +825,12 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
                               onClick={() => handleAnswerSelect(oIdx)}
                               disabled={quizResult === 'correct'}
                               className={`p-2 rounded-xl text-left text-[11px] font-medium transition-all ${selectedAnswer === oIdx
-                                  ? quizResult === 'correct'
-                                    ? 'bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.5)] border border-emerald-500 text-emerald-200'
-                                    : quizResult === 'wrong'
-                                      ? 'bg-red-500/20 border border-red-500 text-red-200 animate-[shake_0.5s_ease-in-out]'
-                                      : 'bg-cyan-500/20 border border-cyan-400 text-cyan-200'
-                                  : 'bg-black/20 hover:bg-white/10 border border-white/10 text-slate-300'
+                                ? quizResult === 'correct'
+                                  ? 'bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.5)] border border-emerald-500 text-emerald-200'
+                                  : quizResult === 'wrong'
+                                    ? 'bg-red-500/20 border border-red-500 text-red-200 animate-[shake_0.5s_ease-in-out]'
+                                    : 'bg-cyan-500/20 border border-cyan-400 text-cyan-200'
+                                : 'bg-black/20 hover:bg-white/10 border border-white/10 text-slate-300'
                                 }`}
                             >
                               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
