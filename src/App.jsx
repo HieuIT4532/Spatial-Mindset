@@ -369,7 +369,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isWorkspaceMode, initialProblem]);
+  }, [isWorkspaceMode, initialProblem?.content]);
 
   useEffect(() => {
     const handleResetView = () => {

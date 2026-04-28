@@ -40,6 +40,9 @@ export default function ContestWorkspace() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
 
+  const [showMathBuilder, setShowMathBuilder] = useState(false);
+  const [mathInput, setMathInput] = useState('');
+
   const { activeContestId, timeLeft, isStarted, startContest, decrementTime, addPenalty } = useContestStore();
 
   // Timer & Contest State Initialization
@@ -67,8 +70,33 @@ export default function ContestWorkspace() {
     setTimeout(() => setToast(null), 5000);
   };
 
-  // insertMath removed, using MathLive keyboard
+  const insertMathToTextarea = () => {
+    if (!mathInput.trim()) {
+      setShowMathBuilder(false);
+      return;
+    }
+    
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = explanationText.substring(0, start);
+    const after = explanationText.substring(end);
+    
+    const latexToInsert = `$${mathInput}$`;
+    const newText = before + latexToInsert + after;
+    setExplanationText(newText);
+    
+    setMathInput('');
+    setShowMathBuilder(false);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + latexToInsert.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
   const evaluateMathProblem = async (probId, explain, answer) => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -206,31 +234,66 @@ export default function ContestWorkspace() {
                   <h3 className="text-sm font-bold text-gray-300">Phần Trình bày</h3>
                   <button 
                     onClick={() => {
-                      if (window.mathVirtualKeyboard) {
-                        window.mathVirtualKeyboard.show();
+                      if (!showMathBuilder) {
+                        setShowMathBuilder(true);
+                        setTimeout(() => {
+                           if (window.mathVirtualKeyboard) window.mathVirtualKeyboard.show();
+                        }, 100);
+                      } else {
+                        setShowMathBuilder(false);
+                        if (window.mathVirtualKeyboard) window.mathVirtualKeyboard.hide();
                       }
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-400 transition-colors bg-cyan-500/10 px-3 py-1.5 rounded-md border border-cyan-500/20"
+                    className={`text-[10px] font-black uppercase tracking-widest transition-colors px-3 py-1.5 rounded-md border ${
+                      showMathBuilder 
+                        ? 'bg-zinc-800 text-gray-400 border-zinc-700 hover:text-white' 
+                        : 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20 hover:text-cyan-400'
+                    }`}
                   >
-                    Mở Bàn phím Toán
+                    {showMathBuilder ? 'Đóng bộ gõ' : 'Chèn công thức Toán'}
                   </button>
                 </div>
 
+                {showMathBuilder && (
+                  <div className="flex-none p-4 border-b border-zinc-800 bg-[#050505] flex flex-col gap-3 shadow-inner">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest flex items-center gap-2">
+                        <Sparkles size={12}/> Trình soạn công thức
+                      </label>
+                      <button
+                        onClick={insertMathToTextarea}
+                        className="text-[10px] font-black uppercase tracking-widest text-white bg-cyan-600 hover:bg-cyan-500 px-3 py-1.5 rounded-md transition-all shadow-lg shadow-cyan-500/20"
+                      >
+                        Chèn vào bài làm
+                      </button>
+                    </div>
+                    <div className="bg-zinc-900 rounded-xl border border-zinc-700 overflow-hidden focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500 transition-all">
+                      <math-field
+                        value={mathInput}
+                        onInput={(e) => setMathInput(e.target.value)}
+                        style={{ 
+                          width: '100%', 
+                          minHeight: '60px',
+                          background: 'transparent', 
+                          color: '#22d3ee', 
+                          border: 'none', 
+                          outline: 'none',
+                          fontSize: '20px',
+                          padding: '12px 16px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex-1 p-6 overflow-hidden bg-zinc-900/20">
-                  <math-field
+                  <textarea
                     ref={textareaRef}
                     value={explanationText}
-                    onInput={(e) => setExplanationText(e.target.value)}
-                    style={{ 
-                      width: '100%', 
-                      height: '100%',
-                      background: 'transparent', 
-                      color: '#d1d5db', 
-                      border: 'none', 
-                      outline: 'none',
-                      fontSize: '18px',
-                      padding: '16px'
-                    }}
+                    onChange={(e) => setExplanationText(e.target.value)}
+                    disabled={isSubmitting}
+                    placeholder="Nhập phần trình bày bằng văn bản bình thường (VD: Ta có tam giác vuông ABC...). Khi cần chèn toán, hãy nhấn nút 'Chèn công thức Toán' ở trên..."
+                    className="w-full h-full bg-transparent border-none resize-none focus:outline-none text-[15px] text-gray-300 placeholder:text-zinc-600 custom-scrollbar leading-relaxed font-sans"
                   />
                 </div>
               </div>
