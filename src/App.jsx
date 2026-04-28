@@ -913,8 +913,8 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
         </div>
       )}
     </div>
-  </motion.div>
-
+    </motion.div>
+  )}
   {/* 🧊 Vertical Solution Panel (Graph mode) */ }
   <AnimatePresence>
     {activeMode === 'GRAPH' && algebraData && showAlgebraSolution && (

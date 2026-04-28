@@ -168,12 +168,6 @@ export default function ProblemSetPage() {
 
   return (
     <div className="min-h-screen font-sans bg-white dark:bg-[#0a0a0a] transition-colors duration-200">
-      <Navbar 
-        xp={user?.xp || 0}
-        streak={user?.streak || 0}
-        theme={theme}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      />
 
       <div className="pt-20 px-6 pb-20 max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
         

@@ -7,6 +7,8 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { ArrowLeft, CheckCircle, Clock, Play, AlertCircle, Sparkles } from 'lucide-react';
 import App from '../../App'; // Re-use 3D Canvas
+import useContestStore from '../../store/useContestStore';
+import 'mathlive';
 
 // Mock data for problems
 const ALL_PROBLEMS = {
@@ -37,16 +39,20 @@ export default function ContestWorkspace() {
   const [finalAnswer, setFinalAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(90 * 60);
-  const [showMathKeyboard, setShowMathKeyboard] = useState(true);
 
-  // Timer
+  const { activeContestId, timeLeft, isStarted, startContest, decrementTime, addPenalty } = useContestStore();
+
+  // Timer & Contest State Initialization
   useEffect(() => {
+    if (!isStarted || activeContestId !== contestId) {
+      startContest(contestId, 90 * 60);
+    }
+    
     const timer = setInterval(() => {
-      setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+      decrementTime();
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [contestId, activeContestId, isStarted, startContest, decrementTime]);
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600);
@@ -61,37 +67,23 @@ export default function ContestWorkspace() {
     setTimeout(() => setToast(null), 5000);
   };
 
-  const insertMath = (latex, cursorOffset) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const before = explanationText.substring(0, start);
-    const after = explanationText.substring(end);
-
-    const newText = before + latex + after;
-    setExplanationText(newText);
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = start + (cursorOffset !== undefined ? cursorOffset : latex.length);
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
+  // insertMath removed, using MathLive keyboard
 
   const evaluateMathProblem = async (probId, explain, answer) => {
     return new Promise((resolve) => {
       setTimeout(() => {
+        console.log(`[AI PROMPT] Đánh giá bài giải: Chỉ trả về trạng thái AC khi học sinh viết rõ các bước xác định đường cao, góc, hoặc khoảng cách. Nếu học sinh chỉ gõ bừa kết quả vào phần trình bày, hãy đánh WA.`);
+        
         const isAnswerCorrect = answer.replace(/\s/g, '') === problem.correctAnswer.replace(/\s/g, '');
-        const hasLogicalExplanation = explain.trim().length > 40 && (explain.includes('Ta có') || explain.includes('Suy ra') || explain.includes('⇒'));
+        const explainLower = explain.toLowerCase();
+        const hasLogicalExplanation = explainLower.length > 20 && (explainLower.includes('đường cao') || explainLower.includes('góc') || explainLower.includes('khoảng cách') || explainLower.includes('vuông góc') || explainLower.includes('ta có') || explainLower.includes('suy ra'));
 
         if (isAnswerCorrect && hasLogicalExplanation) {
-          resolve({ status: 'AC', message: 'Lập luận xuất sắc!' });
+          resolve({ status: 'AC', message: 'Lập luận xuất sắc và chi tiết!' });
         } else if (isAnswerCorrect && !hasLogicalExplanation) {
-          resolve({ status: 'WA', message: 'Kết quả đúng nhưng bạn chưa trình bày được logic giải toán.' });
+          resolve({ status: 'WA', message: 'Kết quả đúng nhưng bạn cần trình bày rõ các bước (đường cao, góc, khoảng cách, v.v).' });
         } else {
-          resolve({ status: 'WA', message: 'Kết quả chưa chính xác. Hãy kiểm tra lại các bước tính toán.' });
+          resolve({ status: 'WA', message: 'Kết quả và lập luận chưa chính xác.' });
         }
       }, 2500);
     });
@@ -125,7 +117,7 @@ export default function ContestWorkspace() {
     } else {
       showToast('error', `${result.message} (+5 phút Penalty)`);
       setIsSubmitting(false);
-      setTimeLeft(prev => Math.max(0, prev - 300));
+      addPenalty(300);
     }
   };
 
@@ -213,48 +205,32 @@ export default function ContestWorkspace() {
                 <div className="px-6 py-3 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between flex-none">
                   <h3 className="text-sm font-bold text-gray-300">Phần Trình bày</h3>
                   <button 
-                    onClick={() => setShowMathKeyboard(!showMathKeyboard)}
-                    className="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-400 transition-colors"
+                    onClick={() => {
+                      if (window.mathVirtualKeyboard) {
+                        window.mathVirtualKeyboard.show();
+                      }
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-400 transition-colors bg-cyan-500/10 px-3 py-1.5 rounded-md border border-cyan-500/20"
                   >
-                    {showMathKeyboard ? 'Ẩn phím' : 'Bàn phím Toán'}
+                    Mở Bàn phím Toán
                   </button>
                 </div>
 
-                {showMathKeyboard && (
-                  <div className="px-4 py-2 bg-zinc-900/40 border-b border-zinc-800/50 grid grid-cols-6 sm:grid-cols-8 gap-1 flex-none">
-                    {[
-                      { label: '$$', latex: '$  $', offset: 2 },
-                      { label: 'a/b', latex: '\\frac{}{} ', offset: 6 },
-                      { label: '√', latex: '\\sqrt{} ', offset: 6 },
-                      { label: 'x²', latex: '^{} ', offset: 2 },
-                      { label: 'x₂', latex: '_{} ', offset: 2 },
-                      { label: '∠', latex: '\\widehat{} ', offset: 9 },
-                      { label: '°', latex: '^\\circ ' },
-                      { label: 'v⃗', latex: '\\vec{} ', offset: 5 },
-                      { label: '⊥', latex: '\\perp ' },
-                      { label: '∥', latex: '\\parallel ' },
-                      { label: '△', latex: '\\triangle ' },
-                      { label: 'π', latex: '\\pi ' }
-                    ].map((btn, i) => (
-                      <button
-                        key={i}
-                        onClick={() => insertMath(btn.latex, btn.offset)}
-                        className="flex items-center justify-center py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md text-cyan-100 text-[11px] transition-all font-mono"
-                      >
-                        {btn.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex-1 p-6 overflow-hidden">
-                  <textarea
+                <div className="flex-1 p-6 overflow-hidden bg-zinc-900/20">
+                  <math-field
                     ref={textareaRef}
                     value={explanationText}
-                    onChange={(e) => setExplanationText(e.target.value)}
-                    disabled={isSubmitting}
-                    placeholder="Nhập phần trình bày lời giải chi tiết (Hỗ trợ gõ văn bản kết hợp công thức toán)..."
-                    className="w-full h-full bg-transparent border-none resize-none focus:outline-none text-[15px] text-gray-300 placeholder:text-zinc-600 custom-scrollbar leading-relaxed"
+                    onInput={(e) => setExplanationText(e.target.value)}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%',
+                      background: 'transparent', 
+                      color: '#d1d5db', 
+                      border: 'none', 
+                      outline: 'none',
+                      fontSize: '18px',
+                      padding: '16px'
+                    }}
                   />
                 </div>
               </div>

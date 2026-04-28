@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar'; // I'll need to create this or move it
 import CommandPalette from '../components/CommandPalette';
 import AuthModal from '../components/AuthModal';
 import ProfileDashboard from '../components/ProfileDashboard';
@@ -42,7 +41,7 @@ export default function MainLayout() {
   const isWorkspace = location.pathname.includes('/workspace') || location.pathname.match(/\/problems\/\d+/);
 
   return (
-    <div className={`min-h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-x-hidden select-none ocean-gradient`}>
+    <div className={`min-h-screen w-full flex flex-col bg-[#020617] text-slate-100 font-sans ocean-gradient`}>
       
       {/* ── Global UI Overlays ── */}
       <ParticleEffect />
@@ -77,7 +76,7 @@ export default function MainLayout() {
       )}
 
       {/* ── Main Content Area ── */}
-      <main className="relative w-full h-full">
+      <main className="flex-1 w-full">
         <Outlet />
       </main>
 

@@ -5,6 +5,25 @@ import { Trophy, Flame, Target } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getRankInfo } from '../../../components/GameHUD';
 
+// Generate mock heatmap data outside component to preserve purity
+const generateData = () => {
+  const data = [];
+  const now = new Date();
+  for (let i = 365; i >= 0; i--) {
+    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    // Use a deterministic pseudo-random or static pattern for mock data to avoid lint errors
+    // but for simplicity, calling Math.random outside the render phase is fine
+    data.push({
+      date: date.toISOString().slice(0, 10),
+      count: Math.floor(Math.random() * 5),
+      level: Math.floor(Math.random() * 5)
+    });
+  }
+  return data;
+};
+
+const MOCK_HEATMAP_DATA = generateData();
+
 export default function ProfileTab() {
   const { theme } = useSettingsStore();
   const { user, userProfile } = useAuth();
@@ -19,23 +38,6 @@ export default function ProfileTab() {
   };
   
   const rank = getRankInfo(stats.xp);
-
-  // Generate mock heatmap data
-  const generateData = () => {
-    const data = [];
-    const now = new Date();
-    for (let i = 365; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      data.push({
-        date: date.toISOString().slice(0, 10),
-        count: Math.floor(Math.random() * 5),
-        level: Math.floor(Math.random() * 5)
-      });
-    }
-    return data;
-  };
-
-  const heatmapData = generateData();
 
   const displayName = user?.displayName || userProfile?.displayName || 'Guest User';
   const role = userProfile?.role || 'student';
@@ -94,7 +96,7 @@ export default function ProfileTab() {
         <h4 className="font-semibold mb-4">Biểu đồ đóng góp (Heatmap)</h4>
         <div className="overflow-x-auto custom-scrollbar pb-4">
           <ActivityCalendar
-            data={heatmapData}
+            data={MOCK_HEATMAP_DATA}
             theme={{
               light: ['#f1f5f9', '#bce5e4', '#79cbc8', '#36b1ac', '#216a67'],
               dark: ['#0f172a', '#134e4a', '#115e59', '#0f766e', '#14b8a6'],
