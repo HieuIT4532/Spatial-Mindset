@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCountdown } from '../../hooks/useCountdown';
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { Trophy, Clock, Users, ArrowRight, ShieldAlert, PlayCircle, Calendar } from 'lucide-react';
@@ -42,6 +43,7 @@ const MOCK_LEADERBOARD = [
 ];
 
 const ContestCard = ({ contest }) => {
+  const navigate = useNavigate();
   const { formattedText, isOver } = useCountdown(contest.startTime);
   
   return (
@@ -73,7 +75,10 @@ const ContestCard = ({ contest }) => {
               )}
             </div>
           </div>
-          <button className="w-full xl:w-auto px-6 py-3 bg-white text-black hover:bg-slate-200 font-black rounded-xl transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] flex items-center justify-center gap-2 whitespace-nowrap">
+          <button 
+            onClick={() => navigate(`/contest/${contest.id}`)}
+            className="w-full xl:w-auto px-6 py-3 bg-white text-black hover:bg-slate-200 font-black rounded-xl transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] flex items-center justify-center gap-2 whitespace-nowrap"
+          >
             Đăng ký <ArrowRight size={18} />
           </button>
         </div>
@@ -117,6 +122,7 @@ const columns = [
 ];
 
 export default function ContestPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('past');
 
   const table = useReactTable({
@@ -223,7 +229,10 @@ export default function ContestPage() {
                       </div>
                     </div>
                     
-                    <button className="w-full sm:w-auto px-6 py-2.5 bg-fuchsia-100 dark:bg-fuchsia-500/20 text-fuchsia-600 dark:text-fuchsia-400 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-500/30 font-bold rounded-xl transition-all flex items-center justify-center gap-2 flex-shrink-0">
+                    <button 
+                      onClick={() => navigate(`/contest/${contest.id}`)}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-fuchsia-100 dark:bg-fuchsia-500/20 text-fuchsia-600 dark:text-fuchsia-400 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-500/30 font-bold rounded-xl transition-all flex items-center justify-center gap-2 flex-shrink-0"
+                    >
                       <PlayCircle size={18} /> Virtual
                     </button>
                   </div>
