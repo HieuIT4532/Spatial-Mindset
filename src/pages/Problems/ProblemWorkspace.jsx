@@ -30,10 +30,15 @@ export default function ProblemWorkspace() {
     return <div className="h-screen w-full flex items-center justify-center font-sans dark:bg-[#0a0a0a] dark:text-white">Không tìm thấy bài toán!</div>;
   }
 
+  const handleResetCamera = () => {
+    window.dispatchEvent(new CustomEvent('spatialmind-generate'));
+    window.dispatchEvent(new CustomEvent('spatialmind-reset-view'));
+  };
+
   return (
-    <div className="h-screen w-full font-sans bg-white dark:bg-[#0a0a0a] flex flex-col overflow-hidden pt-14">
+    <div className="h-screen w-full font-sans bg-white dark:bg-[#0a0a0a] flex flex-col overflow-hidden">
       {/* Header bar nhỏ cho Workspace */}
-      <div className="h-12 border-b border-gray-200 dark:border-zinc-800 flex items-center px-4 justify-between bg-gray-50 dark:bg-zinc-900/50">
+      <div className="h-14 border-b border-gray-200 dark:border-zinc-800 flex items-center px-4 justify-between bg-gray-50 dark:bg-zinc-900/50">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/problems')}
@@ -52,9 +57,12 @@ export default function ProblemWorkspace() {
         </div>
         
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-lg bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors shadow-sm">
+          <button 
+            onClick={handleResetCamera}
+            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-lg bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors shadow-sm"
+          >
             <Play size={12} />
-            Chạy thử
+            Khởi Tạo / Reset
           </button>
           <button className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors shadow-sm">
             <CheckCircle size={14} />
