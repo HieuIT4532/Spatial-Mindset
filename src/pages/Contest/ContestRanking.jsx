@@ -3,13 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { ArrowLeft, Trophy, Search, User, Bug, Clock } from 'lucide-react';
 
-// Custom Hook for Live Ranking (Firebase Mock)
+// Custom Hook lấy dữ liệu Bảng xếp hạng Real-time (Giả lập Firebase Firestore onSnapshot)
 const useLiveRanking = (contestId) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Giả lập onSnapshot của Firestore lắng nghe collection contest_participations
+    // Giả lập dữ liệu ban đầu từ collection `contest_participations`
     const initialData = [
       {
         id: '1',
@@ -114,11 +114,11 @@ const useLiveRanking = (contestId) => {
       setLoading(false);
     }, 1000);
 
-    // Giả lập cập nhật realtime khi có người nộp bài
+    // Giả lập sự kiện onSnapshot trả về dữ liệu mới (Realtime update)
     const interval = setInterval(() => {
       setData(prev => {
         const newData = [...prev];
-        // Giả lập Charlie3D giải được Q2 sau 5s
+        // Thí sinh hạng 4 giải xong Q2 sau vài giây
         if (newData[3] && !newData[3].q2.time) {
           newData[3] = {
             ...newData[3],
@@ -142,7 +142,8 @@ const useLiveRanking = (contestId) => {
 
 const columnHelper = createColumnHelper();
 
-const QuestionCell = ({ data, points }) => {
+// Component phụ để render từng ô câu hỏi (Q1 -> Q4)
+const QuestionCell = ({ data }) => {
   if (!data || (!data.time && data.penalty === 0)) return null;
   
   return (
@@ -152,8 +153,9 @@ const QuestionCell = ({ data, points }) => {
       ) : (
         <span className="text-sm font-bold text-gray-700 font-mono">--:--</span>
       )}
+      {/* Hiển thị số lần sai (Penalty) màu đỏ nếu có */}
       {data.penalty > 0 && (
-        <span className="flex items-center gap-1 text-[10px] font-black text-red-500 mt-0.5">
+        <span className="flex items-center gap-1 text-[10px] font-black text-red-500 mt-0.5" title="Số lần nộp sai">
           <Bug size={10} /> {data.penalty}
         </span>
       )}
@@ -166,11 +168,13 @@ export default function ContestRanking() {
   const navigate = useNavigate();
   const { data: rankingData, loading } = useLiveRanking(contestId);
 
+  // Định nghĩa các cột (Columns) cho React Table
   const columns = useMemo(() => [
     columnHelper.accessor('rank', {
       header: 'Hạng',
       cell: (info) => {
         const rank = info.getValue();
+        // Highlight Vàng/Bạc/Đồng cho Top 3
         if (rank === 1) return <span className="text-2xl drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]">🥇</span>;
         if (rank === 2) return <span className="text-2xl drop-shadow-[0_0_8px_rgba(156,163,175,0.5)]">🥈</span>;
         if (rank === 3) return <span className="text-2xl drop-shadow-[0_0_8px_rgba(180,83,9,0.5)]">🥉</span>;
@@ -178,10 +182,10 @@ export default function ContestRanking() {
       },
     }),
     columnHelper.accessor('username', {
-      header: 'Tên Học Sinh',
+      header: 'Thí sinh',
       cell: (info) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 font-bold text-xs flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 font-bold text-xs flex-shrink-0 shadow-inner">
             {info.row.original.avatar || <User size={14} />}
           </div>
           <span className="font-bold text-white text-sm">{info.getValue()}</span>
@@ -193,7 +197,7 @@ export default function ContestRanking() {
       cell: (info) => <span className="text-cyan-400 font-bold text-base">{info.getValue()}</span>,
     }),
     columnHelper.accessor('finishTime', {
-      header: 'Thời Gian',
+      header: 'Hoàn thành',
       cell: (info) => (
         <div className="flex flex-col">
           <span className="text-gray-300 font-mono text-sm">{info.getValue()}</span>
@@ -218,6 +222,7 @@ export default function ContestRanking() {
     }),
   ], []);
 
+  // Khởi tạo instance của React Table
   const table = useReactTable({
     data: rankingData,
     columns,
@@ -225,50 +230,52 @@ export default function ContestRanking() {
   });
 
   return (
-    <div className="min-h-screen font-sans bg-[#0a0a0a] text-gray-300 py-12 px-4 md:px-8">
+    <div className="min-h-screen font-sans bg-[#0a0a0a] text-gray-300 py-24 px-4 md:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
         
-        {/* Header */}
+        {/* Phần Tiêu đề Header */}
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate(`/contest/${contestId}`)}
             className="p-2 hover:bg-zinc-900 rounded-lg text-gray-500 transition-colors border border-transparent hover:border-zinc-800"
+            title="Quay lại chi tiết kỳ thi"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-tight">
-              <Trophy className="text-yellow-500" size={24} /> Contest Leaderboard
+              <Trophy className="text-yellow-500" size={24} /> Bảng xếp hạng kỳ thi
             </h1>
-            <p className="text-zinc-500 text-xs font-mono mt-1 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> REAL-TIME FEED ACTIVE
-            </p>
+            <div className="text-zinc-500 text-xs font-mono mt-1 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> TRỰC TIẾP (REAL-TIME)
+            </div>
           </div>
         </div>
 
-        {/* Filters/Search */}
-        <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+        {/* Bộ lọc và Tìm kiếm */}
+        <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-sm">
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
             <input 
               type="text" 
-              placeholder="Search participants..." 
+              placeholder="Tìm kiếm thí sinh..." 
               className="w-full bg-black/40 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all shadow-inner"
             />
           </div>
           <div className="flex items-center gap-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest bg-black/20 px-4 py-2 rounded-xl border border-zinc-800/50">
-             <div className="flex items-center gap-2"><Clock size={12}/> Time Elapsed: 00:45:12</div>
+             <div className="flex items-center gap-2"><Clock size={12}/> Thời gian đã trôi qua: 00:45:12</div>
           </div>
         </div>
 
-        {/* Ranking Table */}
+        {/* Bảng Xếp Hạng (React Table) */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
           {loading ? (
             <div className="p-20 text-center flex flex-col items-center gap-4">
               <div className="w-8 h-8 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
-              <p className="text-sm font-bold text-zinc-500 animate-pulse">SYNCING RANKING DATA...</p>
+              <p className="text-sm font-bold text-zinc-500 animate-pulse uppercase tracking-widest">Đang đồng bộ dữ liệu...</p>
             </div>
           ) : (
+            // Overflow x-auto để bảng có thể cuộn ngang nếu màn hình hẹp
             <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
@@ -289,7 +296,7 @@ export default function ContestRanking() {
                   {table.getRowModel().rows.map((row, index) => (
                     <tr 
                       key={row.id} 
-                      className={`hover:bg-zinc-800/20 transition-colors ${index % 2 === 0 ? 'bg-transparent' : 'bg-black/10'}`}
+                      className={`hover:bg-zinc-800/40 transition-colors ${index % 2 === 0 ? 'bg-transparent' : 'bg-black/20'}`}
                     >
                       {row.getVisibleCells().map((cell, i) => (
                         <td key={cell.id} className={`px-6 py-4 ${i >= 4 ? 'text-center border-l border-zinc-800/20' : ''}`}>
@@ -304,11 +311,11 @@ export default function ContestRanking() {
           )}
         </div>
         
-        {/* Footer info */}
-        <div className="p-6 bg-zinc-900/30 border border-zinc-800/50 rounded-2xl flex items-center gap-3">
-          <Bug className="text-red-500" size={16} />
-          <p className="text-xs text-zinc-500 leading-relaxed font-medium">
-            <strong>Penalty Rule:</strong> Every wrong submission adds 5 minutes to your total finish time. The total finish time is used to break ties between users with the same score.
+        {/* Phần chú thích Footer */}
+        <div className="p-6 bg-zinc-900/30 border border-zinc-800/50 rounded-2xl flex items-center gap-3 shadow-inner">
+          <Bug className="text-red-500 flex-shrink-0" size={16} />
+          <p className="text-xs text-zinc-400 leading-relaxed font-medium">
+            <strong className="text-white">Luật Phạt (Penalty):</strong> Mỗi lần nộp bài sai (Wrong Answer) sẽ cộng thêm 5 phút vào tổng thời gian hoàn thành của bạn. Tổng thời gian hoàn thành (Finish Time) được sử dụng làm tiêu chí phụ để xếp hạng nếu có nhiều người bằng điểm nhau.
           </p>
         </div>
 
