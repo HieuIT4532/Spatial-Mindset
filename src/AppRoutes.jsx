@@ -3,7 +3,19 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import App from './App';
 import SettingsLayout from './pages/Settings/layout';
-// ... other imports
+import ProblemSetPage from './pages/Problems/ProblemSetPage';
+import CreateProblemPage from './pages/Problems/CreateProblemPage';
+import ProblemWorkspace from './pages/Problems/ProblemWorkspace';
+import ContestPage from './pages/Contest/ContestPage';
+import ContestDetailPage from './pages/Contest/ContestDetailPage';
+import ContestWorkspace from './pages/Contest/ContestWorkspace';
+import ContestRanking from './pages/Contest/ContestRanking';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import ProfileTab from './pages/Settings/tabs/ProfileTab';
+import AppearanceTab from './pages/Settings/tabs/AppearanceTab';
+import WorkspaceTab from './pages/Settings/tabs/WorkspaceTab';
+import ShortcutsTab from './pages/Settings/tabs/ShortcutsTab';
+import LoginPage from './pages/Login/LoginPage';
 
 export default function AppRoutes() {
   return (
