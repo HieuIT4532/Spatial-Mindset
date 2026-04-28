@@ -167,7 +167,7 @@ export default function ProblemSetPage() {
   });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950">
+    <div className="min-h-screen font-sans bg-white dark:bg-[#0a0a0a] transition-colors duration-200">
       <Navbar 
         xp={user?.xp || 0}
         streak={user?.streak || 0}
@@ -185,7 +185,7 @@ export default function ProblemSetPage() {
         </div>
 
         {/* Filters & Search Toolbar */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-zinc-950 p-4 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input 
@@ -229,7 +229,7 @@ export default function ProblemSetPage() {
             <button
               key={tag}
               onClick={() => setGlobalFilter(tag)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
             >
               {tag}
             </button>
@@ -237,13 +237,13 @@ export default function ProblemSetPage() {
         </div>
 
         {/* Data Table */}
-        <div className="bg-white dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm">
           {(isProblemsLoading || isProgressLoading) ? (
             <div className="p-8 text-center text-slate-500">Đang tải dữ liệu...</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 dark:bg-zinc-900/30 text-slate-500 border-b border-slate-200 dark:border-zinc-800">
+                <thead className="bg-gray-50 dark:bg-zinc-800/50 text-gray-500 dark:text-slate-400 border-b border-gray-200 dark:border-zinc-800">
                   {table.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
@@ -259,12 +259,12 @@ export default function ProblemSetPage() {
                     </tr>
                   ))}
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/50">
+                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/50">
                   {table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map(row => (
                       <tr 
                         key={row.id} 
-                        className="hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition-colors"
+                        className="hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors"
                       >
                         {row.getVisibleCells().map(cell => (
                           <td key={cell.id} className="px-4 py-3">
@@ -291,7 +291,7 @@ export default function ProblemSetPage() {
         <div className="w-full lg:w-[320px] shrink-0 space-y-6">
           
           {/* Calendar / Study Plan */}
-          <div className="bg-white dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 p-5 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-5 overflow-hidden shadow-sm">
             <h3 className="font-semibold text-slate-800 dark:text-white mb-4">Lộ trình học tập</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -319,7 +319,7 @@ export default function ProblemSetPage() {
           </div>
 
           {/* Stats Card */}
-          <div className="bg-white dark:bg-zinc-950 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-5 shadow-sm">
             <h3 className="font-semibold text-slate-800 dark:text-white mb-4">Thống kê của bạn</h3>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-slate-500">Đã giải</span>
