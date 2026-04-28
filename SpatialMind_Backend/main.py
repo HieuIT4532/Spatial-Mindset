@@ -639,12 +639,17 @@ async def proxy_chat(request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="Không thể đọc dữ liệu request.")
     
-    # Danh sách các mô hình dự phòng khi bị giới hạn Quota
+    # Danh sách các mô hình dự phòng khi bị giới hạn Quota (Ưu tiên model hiện tại/mới nhất lên đầu)
     models = [
-        "gemini-2.0-flash",
+        "gemini-3.5-pro",
+        "gemini-3-flash-preview",
+        "gemini-2.5-pro",
         "gemini-2.5-flash", 
-        "gemini-flash-latest", 
-        "gemini-pro-latest"
+        "gemini-2.0-flash",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-pro-latest",
+        "gemini-flash-latest"
     ]
     
     last_error_code = 500

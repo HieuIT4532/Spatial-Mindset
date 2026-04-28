@@ -62,7 +62,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="h-screen w-full grid grid-cols-1 md:grid-cols-2 bg-[#020617] text-white overflow-hidden">
+    <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-2 bg-[#020617] text-white overflow-x-hidden">
       {/* ── Left Side: Auth Form ── */}
       <div className="flex flex-col justify-center px-8 md:px-16 lg:px-24 z-10 bg-[#020617]">
         <div className="max-w-md w-full mx-auto">

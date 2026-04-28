@@ -42,7 +42,7 @@ export default function MainLayout() {
   const isWorkspace = location.pathname.includes('/workspace') || location.pathname.match(/\/problems\/\d+/);
 
   return (
-    <div className={`min-h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-hidden select-none ocean-gradient`}>
+    <div className={`min-h-screen w-full bg-[#020617] text-slate-100 font-sans overflow-x-hidden select-none ocean-gradient`}>
       
       {/* ── Global UI Overlays ── */}
       <ParticleEffect />
