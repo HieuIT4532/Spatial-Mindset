@@ -5,36 +5,25 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { ArrowLeft, CheckCircle, Clock, Play, AlertCircle, Sparkles, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, Play, AlertCircle, Sparkles } from 'lucide-react';
 import App from '../../App'; // Re-use 3D Canvas
 
-// Mock data for problems in a contest
+// Mock data for problems
 const ALL_PROBLEMS = {
   'weekly-1': [
     { id: '1', title: 'Q1. Góc giữa SC và mặt phẳng (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông, $SA \\perp (ABCD)$. Góc giữa đường thẳng $SC$ và mặt phẳng $(ABCD)$ là gì?', correctAnswer: 'SCA', points: 3 },
     { id: '2', title: 'Q2. Tính góc giữa SD và mặt đáy', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = a$. Tính góc giữa $SD$ và mặt đáy $(ABCD)$.', correctAnswer: '45', points: 4 },
     { id: '3', title: 'Q3. Tính góc giữa SC và (ABC)', content: 'Cho hình chóp $S.ABC$ có $SA \\perp (ABC)$, $SA = 2a$. Tam giác $ABC$ vuông tại $B$, $AB = a\\sqrt{3}$ và $BC = a$. Tính góc giữa đường thẳng $SC$ và mặt phẳng $(ABC)$.', correctAnswer: '45', points: 5 },
     { id: '4', title: 'Q4. Góc giữa SB và đáy', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SB = 2a$. Góc giữa đường thẳng $SB$ và mặt phẳng đáy bằng bao nhiêu độ?', correctAnswer: '60', points: 6 }
-  ],
-  'weekly-2': [
-    { id: '1', title: 'Q1. Tính góc giữa SM và (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy là hình chữ nhật $ABCD$ có $AB = a$, $AD = 2a$. Cạnh $SA = a\\sqrt{6}$ và vuông góc với mặt phẳng đáy. Gọi $M$ là trung điểm của $BC$. Tính góc giữa $SM$ và $(ABCD)$.', correctAnswer: '60', points: 3 },
-    { id: '2', title: 'Q2. Góc tạo bởi SC và mặt phẳng (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình chữ nhật, $AB = a$, $BC = 2a$. Hai mặt bên $(SAB)$, $(SAD)$ cùng vuông góc với mặt phẳng $(ABCD)$ và $SA = a\\sqrt{15}$. Góc tạo bởi $SC$ và mặt phẳng $(ABCD)$ là bao nhiêu?', correctAnswer: '60', points: 4 },
-    { id: '3', title: 'Q3. Tính tan góc giữa SC và (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình chữ nhật, cạnh $AB = a$, $AD = 2a$, $SA \\perp (ABCD)$, $SA = 5a$. Tính $\\tan$ góc giữa $SC$ và mặt phẳng $(ABCD)$.', correctAnswer: '\\sqrt{5}', points: 5 },
-    { id: '4', title: 'Q4. Góc nhị diện [S, CD, A]', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = 2a\\sqrt{3}$. Tính số đo của góc nhị diện $[S, CD, A]$.', correctAnswer: '60', points: 6 }
-  ],
-  'weekly-3': [
-    { id: '1', title: 'Q1. Khoảng cách giữa BD và SC', content: 'Cho hình chóp đều $S.ABCD$ có đáy là hình vuông $ABCD$ tâm $O$ cạnh $2a$, cạnh bên $SA = a\\sqrt{5}$. Khoảng cách giữa $BD$ và $SC$ là bao nhiêu?', correctAnswer: 'a\\sqrt{30}/6', points: 3 },
-    { id: '2', title: 'Q2. Khoảng cách AB và CD', content: 'Cho tứ diện đều $ABCD$ cạnh $a\\sqrt{3}$. Khoảng cách giữa hai đường thẳng $AB$ và $CD$ bằng bao nhiêu?', correctAnswer: 'a\\sqrt{6}/2', points: 4 },
-    { id: '3', title: 'Q3. Khoảng cách AB và SC', content: 'Cho hình chóp $S.ABC$ có đáy $ABC$ là tam giác vuông cân tại $B$, $AB = a$, cạnh bên $SA$ vuông góc với mặt phẳng đáy, góc tạo bởi hai mặt phẳng $(ABC)$ và $(SBC)$ bằng $60^\\circ$. Khoảng cách giữa hai đường thẳng $AB$ và $SC$ bằng bao nhiêu?', correctAnswer: 'a\\sqrt{3}/2', points: 5 },
-    { id: '4', title: 'Q4. Khoảng cách SD và BM', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $2a$, $SA \\perp (ABCD)$. Gọi $M$ là trung điểm của cạnh $CD$, biết $SA = a\\sqrt{5}$. Khoảng cách giữa hai đường thẳng $SD$ và $BM$ là bao nhiêu?', correctAnswer: '2a\\sqrt{145}/29', points: 6 }
-  ],
-  'weekly-4': [
-    { id: '1', title: 'Q1. Thể tích khối chóp S.ABC', content: 'Cho khối chóp $S.ABC$ có đáy $ABC$ là tam giác vuông cân tại $A$, $AB = a$, $\\widehat{SBA} = \\widehat{SCA} = 90^\\circ$, góc giữa hai mặt phẳng $(SAB)$ và $(SAC)$ bằng $60^\\circ$. Thể tích của khối chóp đã cho bằng bao nhiêu?', correctAnswer: 'a^3/6', points: 3 },
-    { id: '2', title: 'Q2. Thể tích lăng trụ', content: 'Tính thể tích khối lăng trụ tam giác đều có tất cả các cạnh bằng $a$.', correctAnswer: 'a^3\\sqrt{3}/4', points: 4 },
-    { id: '3', title: 'Q3. Khoảng cách điểm đến mặt phẳng', content: 'Trong không gian $Oxyz$, tính khoảng cách từ điểm $M(1, 2, 3)$ đến mặt phẳng $(P): x + y + z - 1 = 0$.', correctAnswer: '\\sqrt{3}', points: 5 },
-    { id: '4', title: 'Q4. Thể tích chóp nâng cao', content: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình vuông cạnh $a$. Cạnh bên $SA$ vuông góc với mặt phẳng đáy và $SA = a\\sqrt{2}$. Tính thể tích khối chóp $S.ABCD$.', correctAnswer: 'a^3\\sqrt{2}/3', points: 6 }
   ]
 };
+
+const RotateCw = ({ className, size }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+  </svg>
+);
 
 export default function ContestWorkspace() {
   const { contestId, problemId } = useParams();
@@ -51,6 +40,7 @@ export default function ContestWorkspace() {
   const [timeLeft, setTimeLeft] = useState(90 * 60);
   const [showMathKeyboard, setShowMathKeyboard] = useState(true);
 
+  // Timer
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
@@ -90,7 +80,6 @@ export default function ContestWorkspace() {
     }, 0);
   };
 
-  // Logic "AI Chấm Điểm Kép" (Dual-Validation)
   const evaluateMathProblem = async (probId, explain, answer) => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -136,12 +125,18 @@ export default function ContestWorkspace() {
     } else {
       showToast('error', `${result.message} (+5 phút Penalty)`);
       setIsSubmitting(false);
-      setTimeLeft(prev => Math.max(0, prev - 300)); // Trừ 5 phút vào đồng hồ
+      setTimeLeft(prev => Math.max(0, prev - 300));
     }
+  };
+
+  // Reset 3D Camera by dispatching global event that App.jsx or its components can listen to
+  const handleResetCamera = () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, metaKey: true })); // Hoặc có thể thêm logic custom riêng
   };
 
   return (
     <div className="h-screen w-full font-sans bg-[#0a0a0a] flex flex-col overflow-hidden text-gray-300">
+      
       {/* Topbar */}
       <div className="h-14 border-b border-zinc-800 flex items-center px-4 justify-between bg-zinc-900 z-10">
         <div className="flex items-center gap-4">
@@ -151,16 +146,13 @@ export default function ContestWorkspace() {
           >
             <ArrowLeft size={18} />
           </button>
-          <span className="font-bold text-base text-white truncate max-w-[300px]">{problem.title}</span>
-          <span className="px-2 py-1 text-xs font-mono font-bold text-cyan-400 bg-cyan-400/10 rounded border border-cyan-400/20">
-            {problem.points} Points
-          </span>
+          <span className="font-bold text-base text-white truncate max-w-[400px]">{problem.title}</span>
         </div>
         
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-gray-400 bg-zinc-800/50 px-3 py-1.5 rounded-lg border border-zinc-700/50">
+          <div className="flex items-center gap-2 text-gray-400 bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-700">
             <Clock size={16} className={timeLeft < 300 ? 'text-red-500 animate-pulse' : ''} />
-            <span className={`font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-500' : 'text-white'}`}>
+            <span className={`font-mono font-bold text-lg tracking-wider ${timeLeft < 300 ? 'text-red-500' : 'text-white'}`}>
               {formatTime(timeLeft)}
             </span>
           </div>
@@ -175,7 +167,7 @@ export default function ContestWorkspace() {
             }`}
           >
             {isSubmitting ? <RotateCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
-            {isSubmitting ? 'Đang nhờ AI chấm...' : 'Submit'}
+            {isSubmitting ? 'Đang chấm...' : 'Submit'}
           </button>
         </div>
       </div>
@@ -184,7 +176,7 @@ export default function ContestWorkspace() {
       <div className="flex-1 relative">
         {toast && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4">
-            <div className={`flex items-center gap-3 px-6 py-3 rounded-xl font-bold shadow-2xl border ${
+            <div className={`flex items-center gap-3 px-6 py-3 rounded-xl font-bold shadow-xl border ${
               toast.type === 'success' 
                 ? 'bg-green-500/10 text-green-400 border-green-500/30' 
                 : 'bg-red-500/10 text-red-400 border-red-500/30'
@@ -196,27 +188,29 @@ export default function ContestWorkspace() {
         )}
 
         <PanelGroup direction="horizontal">
+          
+          {/* Pane Trái: Học thuật */}
           <Panel defaultSize={50} minSize={30}>
-            <div className="h-full flex flex-col bg-[#0a0a0a] border-r border-zinc-800 overflow-hidden">
+            <div className="h-full flex flex-col bg-[#0a0a0a] border-r border-zinc-800">
               
-              {/* Khu vực 1: Đề bài (Scrollable) */}
-              <div className="h-[35%] p-6 overflow-y-auto custom-scrollbar border-b border-zinc-800/50">
+              {/* Khu vực 1: Đề bài */}
+              <div className="flex-none p-6 border-b border-zinc-800 bg-zinc-900/30 max-h-[40%] overflow-y-auto custom-scrollbar">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
                     <Sparkles size={14} className="text-cyan-400" /> Đề Bài
                   </h3>
                 </div>
-                <div className="prose prose-sm prose-invert max-w-none text-gray-300 leading-relaxed">
+                <div className="prose prose-sm prose-invert max-w-none text-gray-300 leading-relaxed text-[15px]">
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {problem.content}
                   </ReactMarkdown>
                 </div>
               </div>
 
-              {/* Khu vực 2: Phần Trình Bày + Math Keyboard */}
-              <div className="flex-1 flex flex-col border-b border-zinc-800/50 bg-zinc-900/10 overflow-hidden">
-                <div className="px-6 py-3 border-b border-zinc-800/50 bg-zinc-900/60 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-gray-400">Phần Trình bày</h3>
+              {/* Khu vực 2: Phần Trình Bày */}
+              <div className="flex-1 flex flex-col min-h-0 bg-zinc-900/10">
+                <div className="px-6 py-3 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between flex-none">
+                  <h3 className="text-sm font-bold text-gray-300">Phần Trình bày</h3>
                   <button 
                     onClick={() => setShowMathKeyboard(!showMathKeyboard)}
                     className="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-400 transition-colors"
@@ -225,9 +219,8 @@ export default function ContestWorkspace() {
                   </button>
                 </div>
 
-                {/* Math Keyboard Inline */}
                 {showMathKeyboard && (
-                  <div className="px-4 py-2 bg-zinc-900/40 border-b border-zinc-800/30 grid grid-cols-6 sm:grid-cols-8 gap-1">
+                  <div className="px-4 py-2 bg-zinc-900/40 border-b border-zinc-800/50 grid grid-cols-6 sm:grid-cols-8 gap-1 flex-none">
                     {[
                       { label: '$$', latex: '$  $', offset: 2 },
                       { label: 'a/b', latex: '\\frac{}{} ', offset: 6 },
@@ -245,7 +238,7 @@ export default function ContestWorkspace() {
                       <button
                         key={i}
                         onClick={() => insertMath(btn.latex, btn.offset)}
-                        className="flex items-center justify-center py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md text-cyan-100 text-[10px] transition-all font-mono"
+                        className="flex items-center justify-center py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md text-cyan-100 text-[11px] transition-all font-mono"
                       >
                         {btn.label}
                       </button>
@@ -253,21 +246,21 @@ export default function ContestWorkspace() {
                   </div>
                 )}
 
-                <div className="flex-1 p-4 overflow-hidden">
+                <div className="flex-1 p-6 overflow-hidden">
                   <textarea
                     ref={textareaRef}
                     value={explanationText}
                     onChange={(e) => setExplanationText(e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Sử dụng bàn phím toán học để trình bày lời giải chi tiết..."
-                    className="w-full h-full bg-transparent border-none resize-none focus:outline-none text-sm text-gray-300 placeholder:text-zinc-700 custom-scrollbar leading-relaxed"
+                    placeholder="Nhập phần trình bày lời giải chi tiết (Hỗ trợ gõ văn bản kết hợp công thức toán)..."
+                    className="w-full h-full bg-transparent border-none resize-none focus:outline-none text-[15px] text-gray-300 placeholder:text-zinc-600 custom-scrollbar leading-relaxed"
                   />
                 </div>
               </div>
 
               {/* Khu vực 3: Kết quả cuối cùng */}
-              <div className="p-6 bg-zinc-900/40">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">
+              <div className="flex-none p-6 border-t border-zinc-800 bg-zinc-900/50">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
                   Kết quả cuối cùng <span className="text-red-500">*</span>
                 </label>
                 <div className="relative group">
@@ -279,8 +272,8 @@ export default function ContestWorkspace() {
                     value={finalAnswer}
                     onChange={(e) => setFinalAnswer(e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Nhập kết quả cuối cùng (VD: a^3\sqrt{2}/3)"
-                    className="w-full bg-[#050505] border border-zinc-800 group-hover:border-zinc-700 rounded-xl py-3.5 pl-9 pr-4 text-white font-mono text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all shadow-inner"
+                    placeholder="Ví dụ: a^3\sqrt{2}/3"
+                    className="w-full bg-[#050505] border border-zinc-700 group-hover:border-zinc-600 rounded-xl py-4 pl-9 pr-4 text-white font-mono text-base focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all shadow-inner"
                   />
                 </div>
               </div>
@@ -288,29 +281,29 @@ export default function ContestWorkspace() {
             </div>
           </Panel>
 
-          <PanelResizeHandle className="w-1 bg-zinc-800 hover:bg-cyan-500/50 transition-colors cursor-col-resize" />
+          <PanelResizeHandle className="w-1.5 bg-zinc-900 hover:bg-zinc-700 active:bg-cyan-500/50 transition-colors cursor-col-resize flex flex-col justify-center items-center">
+            <div className="w-0.5 h-8 bg-zinc-700 rounded-full" />
+          </PanelResizeHandle>
 
+          {/* Pane Phải: Trực quan 3D */}
           <Panel defaultSize={50} minSize={30}>
-            <div className="h-full w-full relative bg-[#050505]">
+            <div className="h-full w-full relative bg-[#050505] flex flex-col">
               <button 
-                className="absolute top-4 right-4 z-10 p-2.5 bg-zinc-900/80 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-xl backdrop-blur-md transition-all border border-zinc-800 shadow-xl flex items-center gap-2 text-xs font-bold"
-                title="Reset View"
+                onClick={handleResetCamera}
+                className="absolute top-4 right-4 z-10 px-3 py-2 bg-zinc-900/80 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-lg backdrop-blur-md transition-all border border-zinc-800 shadow-xl flex items-center gap-2 text-xs font-bold"
+                title="Reset Camera View"
               >
-                <Play size={14} fill="currentColor" /> Play
+                <Play size={14} fill="currentColor" className="text-cyan-500" /> Reset View
               </button>
-              <App isWorkspaceMode={true} initialProblem={{ title: problem.title, content: problem.content }} />
+              
+              <div className="flex-1">
+                <App isWorkspaceMode={true} initialProblem={{ title: problem.title, content: problem.content }} />
+              </div>
             </div>
           </Panel>
+
         </PanelGroup>
       </div>
     </div>
   );
 }
-
-// Add RotateCw icon missing from lucide-react imports
-const RotateCw = ({ className, size }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-    <path d="M21 3v5h-5" />
-  </svg>
-);
