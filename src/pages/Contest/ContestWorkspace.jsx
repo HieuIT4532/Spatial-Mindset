@@ -129,9 +129,10 @@ export default function ContestWorkspace() {
     }
   };
 
-  // Reset 3D Camera by dispatching global event that App.jsx or its components can listen to
+  // Reset 3D Camera / Generate geometry by dispatching custom events to App.jsx
   const handleResetCamera = () => {
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, metaKey: true })); // Hoặc có thể thêm logic custom riêng
+    window.dispatchEvent(new CustomEvent('spatialmind-generate'));
+    window.dispatchEvent(new CustomEvent('spatialmind-reset-view'));
   };
 
   return (
@@ -175,7 +176,7 @@ export default function ContestWorkspace() {
       {/* Main Workspace Split */}
       <div className="flex-1 relative">
         {toast && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in slide-in-from-top-4">
             <div className={`flex items-center gap-3 px-6 py-3 rounded-xl font-bold shadow-xl border ${
               toast.type === 'success' 
                 ? 'bg-green-500/10 text-green-400 border-green-500/30' 
@@ -291,9 +292,9 @@ export default function ContestWorkspace() {
               <button 
                 onClick={handleResetCamera}
                 className="absolute top-4 right-4 z-10 px-3 py-2 bg-zinc-900/80 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-lg backdrop-blur-md transition-all border border-zinc-800 shadow-xl flex items-center gap-2 text-xs font-bold"
-                title="Reset Camera View"
+                title="Khởi tạo lại hình khối 3D hoặc Reset góc nhìn"
               >
-                <Play size={14} fill="currentColor" className="text-cyan-500" /> Reset View
+                <Play size={14} fill="currentColor" className="text-cyan-500" /> Khởi Tạo / Reset
               </button>
               
               <div className="flex-1">

@@ -359,6 +359,37 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
     }
   }, [explorerPendingGenerate, promptInput]);
 
+  // Workspace Auto-Generate & Remote Control
+  useEffect(() => {
+    if (isWorkspaceMode && initialProblem?.content) {
+      setPromptInput(initialProblem.content);
+      // Automatically trigger generation after a short delay to allow state to settle
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('spatialmind-generate'));
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isWorkspaceMode, initialProblem]);
+
+  useEffect(() => {
+    const handleResetView = () => {
+      if (controlsRef.current) {
+        controlsRef.current.reset();
+      }
+    };
+    const handleForceGenerate = () => {
+      if (isWorkspaceMode && promptInput.trim()) {
+        handleGenerate();
+      }
+    };
+    window.addEventListener('spatialmind-reset-view', handleResetView);
+    window.addEventListener('spatialmind-generate', handleForceGenerate);
+    return () => {
+      window.removeEventListener('spatialmind-reset-view', handleResetView);
+      window.removeEventListener('spatialmind-generate', handleForceGenerate);
+    };
+  }, [isWorkspaceMode, promptInput]);
+
   const gainXP = useCallback((amount) => {
     setXP(prev => prev + amount);
     setParticleTrigger(t => t + 1);
@@ -521,94 +552,97 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       <ParticleEffect trigger={particleTrigger} />
 
       {/* ── Mode switcher sub-bar (dưới Navbar) ── */}
-      <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
-        style={{ background: 'rgba(2,6,23,0.7)', backdropFilter: 'blur(12px)' }}
-      >
-        {/* Mode tabs */}
-        <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
-          {[
-            { id: 'GEOMETRY', icon: Box, label: 'Hình học 3D' },
-            { id: 'VECTOR', icon: Dna, label: 'Vector' },
-            { id: 'GRAPH', icon: Layers, label: 'Đồ thị' }
-          ].map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => setActiveMode(mode.id)}
-              className="relative px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 group"
-            >
-              {activeMode === mode.id && (
-                <motion.div
-                  layoutId="active-tab"
-                  className="absolute inset-0 bg-cyan-500/20 border border-cyan-400/30 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.2)]"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <mode.icon size={13} className={activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'} />
-              <span className={`text-[10px] font-black uppercase tracking-widest ${activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
-                {mode.label}
-              </span>
-            </button>
-          ))}
-        </div>
+      {!isWorkspaceMode && (
+        <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
+          style={{ background: 'rgba(2,6,23,0.7)', backdropFilter: 'blur(12px)' }}
+        >
+          {/* Mode tabs */}
+          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
+            {[
+              { id: 'GEOMETRY', icon: Box, label: 'Hình học 3D' },
+              { id: 'VECTOR', icon: Dna, label: 'Vector' },
+              { id: 'GRAPH', icon: Layers, label: 'Đồ thị' }
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setActiveMode(mode.id)}
+                className="relative px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 group"
+              >
+                {activeMode === mode.id && (
+                  <motion.div
+                    layoutId="active-tab"
+                    className="absolute inset-0 bg-cyan-500/20 border border-cyan-400/30 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <mode.icon size={13} className={activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'} />
+                <span className={`text-[10px] font-black uppercase tracking-widest ${activeMode === mode.id ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                  {mode.label}
+                </span>
+              </button>
+            ))}
+          </div>
 
-        {/* Quick action tools */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setIsExplorerOpen(e => !e)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isExplorerOpen ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20' : 'text-slate-500 hover:text-cyan-400 hover:bg-white/5'
-              }`}
-          >
-            <Sliders size={12} /> Explorer
-          </button>
-          <button
-            onClick={() => setIsShareOpen(s => !s)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isShareOpen ? 'bg-violet-500/15 text-violet-400 border border-violet-400/20' : 'text-slate-500 hover:text-violet-400 hover:bg-white/5'
-              }`}
-          >
-            <Share2 size={12} /> Share
-          </button>
-          <button
-            onClick={() => setShowAxes(!showAxes)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${showAxes ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'
-              }`}
-          >
-            <LayoutDashboard size={12} /> Axes
-          </button>
+          {/* Quick action tools */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsExplorerOpen(e => !e)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isExplorerOpen ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20' : 'text-slate-500 hover:text-cyan-400 hover:bg-white/5'
+                }`}
+            >
+              <Sliders size={12} /> Explorer
+            </button>
+            <button
+              onClick={() => setIsShareOpen(s => !s)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isShareOpen ? 'bg-violet-500/15 text-violet-400 border border-violet-400/20' : 'text-slate-500 hover:text-violet-400 hover:bg-white/5'
+                }`}
+            >
+              <Share2 size={12} /> Share
+            </button>
+            <button
+              onClick={() => setShowAxes(!showAxes)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${showAxes ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'
+                }`}
+            >
+              <LayoutDashboard size={12} /> Axes
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 🔮 Floating Sidebar — pushed below Navbar + sub-bar (14+8=22 = top-[88px]) */ }
-  <motion.div
-    initial={false}
-    animate={{
-      width: isSidebarCollapsed ? 80 : 380,
-      x: 0,
-      opacity: 1
-    }}
-    className="fixed left-6 z-50 aqua-glass rounded-[28px] overflow-hidden flex flex-col shadow-2xl border-white/5 group/sidebar transition-all duration-500 ease-in-out"
-    style={{ top: '88px', height: 'calc(100vh - 100px)' }}
-  >
-    <button
-      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all z-[70]"
-    >
-      {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-    </button>
+      {!isWorkspaceMode && (
+        <motion.div
+          initial={false}
+          animate={{
+            width: isSidebarCollapsed ? 80 : 380,
+            x: 0,
+            opacity: 1
+          }}
+          className="fixed left-6 z-50 aqua-glass rounded-[28px] overflow-hidden flex flex-col shadow-2xl border-white/5 group/sidebar transition-all duration-500 ease-in-out"
+          style={{ top: '88px', height: 'calc(100vh - 100px)' }}
+        >
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all z-[70]"
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
 
-    <div className="p-8 flex flex-col h-full overflow-hidden">
-      <div className={`mb-10 flex items-center gap-4 transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 scale-90 invisible' : 'opacity-100 scale-100 visible'}`}>
-        <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-          <Box size={22} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-xl font-black tracking-tighter text-[var(--text-main)] uppercase leading-none">
-            SpatialMind
-          </h1>
-          <p className="text-[10px] text-cyan-500/80 font-bold uppercase tracking-widest mt-1">
-            v2.2 {theme === 'dark' ? 'HUD' : 'Light'} Edition
-          </p>
-        </div>
-      </div>
+          <div className="p-8 flex flex-col h-full overflow-hidden">
+            <div className={`mb-10 flex items-center gap-4 transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 scale-90 invisible' : 'opacity-100 scale-100 visible'}`}>
+              <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <Box size={22} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tighter text-[var(--text-main)] uppercase leading-none">
+                  SpatialMind
+                </h1>
+                <p className="text-[10px] text-cyan-500/80 font-bold uppercase tracking-widest mt-1">
+                  v2.2 {theme === 'dark' ? 'HUD' : 'Light'} Edition
+                </p>
+              </div>
+            </div>
 
       <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 translate-x-10 invisible' : 'opacity-100 translate-x-0 visible'}`}>
         <div className="space-y-8">
@@ -864,18 +898,20 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       </div>
 
       {/* Collapsed mini icons */}
-      <div className={`absolute left-0 top-32 w-full flex flex-col items-center gap-8 transition-all duration-300 ${isSidebarCollapsed ? 'opacity-100 visible translate-x-0' : 'opacity-0 invisible -translate-x-10'}`}>
-        <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-          {activeMode === 'GEOMETRY' ? <Box size={22} className="text-white" /> :
-            activeMode === 'VECTOR' ? <Dna size={22} className="text-white" /> :
-              <Layers size={22} className="text-white" />}
+      {!isWorkspaceMode && (
+        <div className={`absolute left-0 top-32 w-full flex flex-col items-center gap-8 transition-all duration-300 ${isSidebarCollapsed ? 'opacity-100 visible translate-x-0' : 'opacity-0 invisible -translate-x-10'}`}>
+          <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            {activeMode === 'GEOMETRY' ? <Box size={22} className="text-white" /> :
+              activeMode === 'VECTOR' ? <Dna size={22} className="text-white" /> :
+                <Layers size={22} className="text-white" />}
+          </div>
+          <div className="flex flex-col gap-6 items-center">
+            <button onClick={handleGenerate} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><Sparkles size={20} /></button>
+            <button onClick={() => setIsChatOpen(true)} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><MessageSquare size={20} /></button>
+            <button onClick={() => setShowDailyChallenge(true)} className="p-3 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all"><Flame size={20} /></button>
+          </div>
         </div>
-        <div className="flex flex-col gap-6 items-center">
-          <button onClick={handleGenerate} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><Sparkles size={20} /></button>
-          <button onClick={() => setIsChatOpen(true)} className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl hover:bg-cyan-500/20 transition-all"><MessageSquare size={20} /></button>
-          <button onClick={() => setShowDailyChallenge(true)} className="p-3 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all"><Flame size={20} /></button>
-        </div>
-      </div>
+      )}
     </div>
   </motion.div>
 
