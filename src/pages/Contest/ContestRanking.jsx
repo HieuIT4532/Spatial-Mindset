@@ -11,7 +11,7 @@ const useLiveRanking = (contestId) => {
   useEffect(() => {
     // Giả lập onSnapshot từ Firebase Firestore
     setLoading(true);
-    
+
     // Khởi tạo data ban đầu
     const initialData = [
       {
@@ -29,7 +29,7 @@ const useLiveRanking = (contestId) => {
       {
         id: 'user2',
         rank: 2,
-        username: 'AliceSpace',
+        username: 'QuocHan',
         avatar: 'A',
         score: 12, // 3 + 4 + 5
         finishTime: '01:25:10',
@@ -41,7 +41,7 @@ const useLiveRanking = (contestId) => {
       {
         id: 'user3',
         rank: 3,
-        username: 'BobBuilder',
+        username: 'DucDung',
         avatar: 'B',
         score: 7, // 3 + 4
         finishTime: '00:45:00',
@@ -53,7 +53,7 @@ const useLiveRanking = (contestId) => {
       {
         id: 'user4',
         rank: 4,
-        username: 'Charlie3D',
+        username: 'QuocHung',
         avatar: 'C',
         score: 3,
         finishTime: '00:20:00',
@@ -99,7 +99,7 @@ const QuestionCell = ({ data }) => {
   if (!data || (data.status === null && data.penalty === 0)) {
     return <div className="h-8"></div>;
   }
-  
+
   return (
     <div className="flex flex-col items-center justify-center h-10">
       {data.status === 'AC' ? (
@@ -107,7 +107,7 @@ const QuestionCell = ({ data }) => {
       ) : (
         <span className="font-mono text-sm text-gray-600">-</span>
       )}
-      
+
       {data.penalty > 0 && (
         <span className="text-xs font-bold text-red-500 mt-0.5">
           🐞 {data.penalty}
@@ -153,19 +153,19 @@ export default function ContestRanking() {
       cell: (info) => <span className="text-gray-400 font-mono text-sm">{info.getValue()}</span>,
     }),
     columnHelper.accessor('q1', {
-      header: () => <div className="text-center"><span className="text-white font-bold">Q1</span><br/><span className="text-xs text-green-500 font-mono">3pt</span></div>,
+      header: () => <div className="text-center"><span className="text-white font-bold">Q1</span><br /><span className="text-xs text-green-500 font-mono">3pt</span></div>,
       cell: (info) => <QuestionCell data={info.getValue()} />,
     }),
     columnHelper.accessor('q2', {
-      header: () => <div className="text-center"><span className="text-white font-bold">Q2</span><br/><span className="text-xs text-blue-500 font-mono">4pt</span></div>,
+      header: () => <div className="text-center"><span className="text-white font-bold">Q2</span><br /><span className="text-xs text-blue-500 font-mono">4pt</span></div>,
       cell: (info) => <QuestionCell data={info.getValue()} />,
     }),
     columnHelper.accessor('q3', {
-      header: () => <div className="text-center"><span className="text-white font-bold">Q3</span><br/><span className="text-xs text-orange-500 font-mono">5pt</span></div>,
+      header: () => <div className="text-center"><span className="text-white font-bold">Q3</span><br /><span className="text-xs text-orange-500 font-mono">5pt</span></div>,
       cell: (info) => <QuestionCell data={info.getValue()} />,
     }),
     columnHelper.accessor('q4', {
-      header: () => <div className="text-center"><span className="text-white font-bold">Q4</span><br/><span className="text-xs text-red-500 font-mono">6pt</span></div>,
+      header: () => <div className="text-center"><span className="text-white font-bold">Q4</span><br /><span className="text-xs text-red-500 font-mono">6pt</span></div>,
       cell: (info) => <QuestionCell data={info.getValue()} />,
     }),
   ], []);
@@ -179,10 +179,10 @@ export default function ContestRanking() {
   return (
     <div className="min-h-screen font-sans bg-[#0a0a0a] py-8 px-4 md:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header */}
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => navigate(`/contest/${contestId}`)}
             className="p-2 hover:bg-zinc-900 rounded-lg text-gray-500 transition-colors border border-transparent hover:border-zinc-800"
           >
@@ -200,9 +200,9 @@ export default function ContestRanking() {
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex items-center justify-between">
           <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm thí sinh..." 
+            <input
+              type="text"
+              placeholder="Tìm kiếm thí sinh..."
               className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg py-2 pl-9 pr-4 text-sm text-white focus:outline-none focus:border-zinc-600 transition-colors"
             />
           </div>
@@ -225,8 +225,8 @@ export default function ContestRanking() {
                   {table.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id} className="bg-[#050505] border-b border-zinc-800">
                       {headerGroup.headers.map((header, i) => (
-                        <th 
-                          key={header.id} 
+                        <th
+                          key={header.id}
                           className={`px-6 py-4 text-xs uppercase tracking-widest ${i >= 4 ? 'text-center' : 'text-left'}`}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
@@ -237,8 +237,8 @@ export default function ContestRanking() {
                 </thead>
                 <tbody className="divide-y divide-zinc-800/50">
                   {table.getRowModel().rows.map((row, index) => (
-                    <tr 
-                      key={row.id} 
+                    <tr
+                      key={row.id}
                       className={`hover:bg-zinc-800/30 transition-colors ${index % 2 === 0 ? 'bg-[#0a0a0a]' : 'bg-zinc-900/50'}`}
                     >
                       {row.getVisibleCells().map((cell, i) => (
@@ -253,7 +253,7 @@ export default function ContestRanking() {
             </div>
           )}
         </div>
-        
+
       </div>
     </div>
   );
