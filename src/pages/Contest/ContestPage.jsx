@@ -8,20 +8,36 @@ import { motion } from 'framer-motion';
 // Mock Data
 const UPCOMING_CONTESTS = [
   {
-    id: "weekly-01",
+    id: "weekly-1",
     type: "Weekly",
-    title: "SpatialMind Weekly Contest 12",
+    title: "SpatialMind STEM Contest 1",
     startTime: "2026-05-10T08:00:00Z",
     registered: 1250,
     gradient: "from-blue-600 to-indigo-900"
   },
   {
-    id: "biweekly-01",
-    type: "Biweekly",
-    title: "SpatialMind Biweekly Contest 4",
+    id: "weekly-2",
+    type: "Weekly",
+    title: "SpatialMind STEM Contest 2",
     startTime: "2026-05-13T14:00:00Z",
     registered: 890,
     gradient: "from-purple-600 to-fuchsia-900"
+  },
+  {
+    id: "weekly-3",
+    type: "Weekly",
+    title: "SpatialMind STEM Contest 3",
+    startTime: "2026-05-17T09:00:00Z",
+    registered: 1500,
+    gradient: "from-emerald-600 to-teal-900"
+  },
+  {
+    id: "weekly-4",
+    type: "Weekly",
+    title: "SpatialMind STEM Contest 4",
+    startTime: "2026-05-20T20:00:00Z",
+    registered: 720,
+    gradient: "from-rose-600 to-orange-900"
   }
 ];
 
@@ -33,13 +49,14 @@ const PAST_CONTESTS = [
 ];
 
 const MOCK_LEADERBOARD = [
-  { rank: 1, username: "HieuIT", avatar: "H", score: 4, penalty: 45 },
-  { rank: 2, username: "AliceSpace", avatar: "A", score: 4, penalty: 52 },
-  { rank: 3, username: "BobBuilder", avatar: "B", score: 4, penalty: 68 },
-  { rank: 4, username: "Charlie3D", avatar: "C", score: 3, penalty: 30 },
-  { rank: 5, username: "DavidGeo", avatar: "D", score: 3, penalty: 45 },
-  { rank: 6, username: "EveMath", avatar: "E", score: 2, penalty: 15 },
-  { rank: 7, username: "FrankCube", avatar: "F", score: 2, penalty: 20 },
+  { rank: 1, username: "Trung Hiếu", avatar: "TH", score: 4, penalty: 45 },
+  { rank: 2, username: "Quốc Hán", avatar: "QH", score: 4, penalty: 52 },
+  { rank: 3, username: "Đức Dũng", avatar: "DD", score: 4, penalty: 68 },
+  { rank: 4, username: "Quỳnh Trang", avatar: "QT", score: 3, penalty: 30 },
+  { rank: 5, username: "Anh Thư", avatar: "AT", score: 3, penalty: 45 },
+  { rank: 6, username: "Phương Anh", avatar: "PA", score: 2, penalty: 15 },
+  { rank: 7, username: "Hoàng Hiệp", avatar: "HH", score: 2, penalty: 20 },
+  { rank: 8, username: "Lê Trang", avatar: "LT", score: 0, penalty: 0 },
 ];
 
 const ContestCard = ({ contest }) => {

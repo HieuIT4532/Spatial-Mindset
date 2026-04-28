@@ -9,35 +9,31 @@ import { ArrowLeft, CheckCircle, Clock, Play, AlertCircle, Sparkles, LayoutDashb
 import App from '../../App'; // Re-use 3D Canvas
 
 // Mock data for problems in a contest
-const MOCK_PROBLEMS = {
-  '1': {
-    id: '1',
-    title: 'Q1. Hình học cơ bản',
-    content: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình vuông cạnh $a$. Cạnh bên $SA$ vuông góc với mặt phẳng đáy và $SA = a\\sqrt{2}$. \n\nTính thể tích khối chóp $S.ABCD$.',
-    correctAnswer: 'a^3\\sqrt{2}/3',
-    points: 3,
-  },
-  '2': {
-    id: '2',
-    title: 'Q2. Khoảng cách',
-    content: 'Cho hình lập phương $ABCD.A\'B\'C\'D\'$ cạnh $a$. Tính khoảng cách giữa hai đường thẳng $A\'B$ và $B\'C$.',
-    correctAnswer: 'a\\sqrt{3}/3',
-    points: 4,
-  },
-  '3': {
-    id: '3',
-    title: 'Q3. Thể tích chóp',
-    content: 'Cho khối chóp $S.ABC$ có đáy $ABC$ là tam giác đều cạnh $a$. $SA$ vuông góc với đáy và $SA = a$. Tính thể tích khối chóp $S.ABC$.',
-    correctAnswer: 'a^3\\sqrt{3}/12',
-    points: 5,
-  },
-  '4': {
-    id: '4',
-    title: 'Q4. Min-Max',
-    content: 'Tìm giá trị lớn nhất của thể tích khối hộp chữ nhật nội tiếp trong mặt cầu bán kính $R$.',
-    correctAnswer: '8R^3\\sqrt{3}/9',
-    points: 6,
-  }
+const ALL_PROBLEMS = {
+  'weekly-1': [
+    { id: '1', title: 'Q1. Góc giữa SC và mặt phẳng (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông, $SA \\perp (ABCD)$. Góc giữa đường thẳng $SC$ và mặt phẳng $(ABCD)$ là gì?', correctAnswer: 'SCA', points: 3 },
+    { id: '2', title: 'Q2. Tính góc giữa SD và mặt đáy', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = a$. Tính góc giữa $SD$ và mặt đáy $(ABCD)$.', correctAnswer: '45', points: 4 },
+    { id: '3', title: 'Q3. Tính góc giữa SC và (ABC)', content: 'Cho hình chóp $S.ABC$ có $SA \\perp (ABC)$, $SA = 2a$. Tam giác $ABC$ vuông tại $B$, $AB = a\\sqrt{3}$ và $BC = a$. Tính góc giữa đường thẳng $SC$ và mặt phẳng $(ABC)$.', correctAnswer: '45', points: 5 },
+    { id: '4', title: 'Q4. Góc giữa SB và đáy', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SB = 2a$. Góc giữa đường thẳng $SB$ và mặt phẳng đáy bằng bao nhiêu độ?', correctAnswer: '60', points: 6 }
+  ],
+  'weekly-2': [
+    { id: '1', title: 'Q1. Tính góc giữa SM và (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy là hình chữ nhật $ABCD$ có $AB = a$, $AD = 2a$. Cạnh $SA = a\\sqrt{6}$ và vuông góc với mặt phẳng đáy. Gọi $M$ là trung điểm của $BC$. Tính góc giữa $SM$ và $(ABCD)$.', correctAnswer: '60', points: 3 },
+    { id: '2', title: 'Q2. Góc tạo bởi SC và mặt phẳng (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình chữ nhật, $AB = a$, $BC = 2a$. Hai mặt bên $(SAB)$, $(SAD)$ cùng vuông góc với mặt phẳng $(ABCD)$ và $SA = a\\sqrt{15}$. Góc tạo bởi $SC$ và mặt phẳng $(ABCD)$ là bao nhiêu?', correctAnswer: '60', points: 4 },
+    { id: '3', title: 'Q3. Tính tan góc giữa SC và (ABCD)', content: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình chữ nhật, cạnh $AB = a$, $AD = 2a$, $SA \\perp (ABCD)$, $SA = 5a$. Tính $\\tan$ góc giữa $SC$ và mặt phẳng $(ABCD)$.', correctAnswer: '\\sqrt{5}', points: 5 },
+    { id: '4', title: 'Q4. Góc nhị diện [S, CD, A]', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $a$, $SA \\perp (ABCD)$ và $SA = 2a\\sqrt{3}$. Tính số đo của góc nhị diện $[S, CD, A]$.', correctAnswer: '60', points: 6 }
+  ],
+  'weekly-3': [
+    { id: '1', title: 'Q1. Khoảng cách giữa BD và SC', content: 'Cho hình chóp đều $S.ABCD$ có đáy là hình vuông $ABCD$ tâm $O$ cạnh $2a$, cạnh bên $SA = a\\sqrt{5}$. Khoảng cách giữa $BD$ và $SC$ là bao nhiêu?', correctAnswer: 'a\\sqrt{30}/6', points: 3 },
+    { id: '2', title: 'Q2. Khoảng cách AB và CD', content: 'Cho tứ diện đều $ABCD$ cạnh $a\\sqrt{3}$. Khoảng cách giữa hai đường thẳng $AB$ và $CD$ bằng bao nhiêu?', correctAnswer: 'a\\sqrt{6}/2', points: 4 },
+    { id: '3', title: 'Q3. Khoảng cách AB và SC', content: 'Cho hình chóp $S.ABC$ có đáy $ABC$ là tam giác vuông cân tại $B$, $AB = a$, cạnh bên $SA$ vuông góc với mặt phẳng đáy, góc tạo bởi hai mặt phẳng $(ABC)$ và $(SBC)$ bằng $60^\\circ$. Khoảng cách giữa hai đường thẳng $AB$ và $SC$ bằng bao nhiêu?', correctAnswer: 'a\\sqrt{3}/2', points: 5 },
+    { id: '4', title: 'Q4. Khoảng cách SD và BM', content: 'Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh $2a$, $SA \\perp (ABCD)$. Gọi $M$ là trung điểm của cạnh $CD$, biết $SA = a\\sqrt{5}$. Khoảng cách giữa hai đường thẳng $SD$ và $BM$ là bao nhiêu?', correctAnswer: '2a\\sqrt{145}/29', points: 6 }
+  ],
+  'weekly-4': [
+    { id: '1', title: 'Q1. Thể tích khối chóp S.ABC', content: 'Cho khối chóp $S.ABC$ có đáy $ABC$ là tam giác vuông cân tại $A$, $AB = a$, $\\widehat{SBA} = \\widehat{SCA} = 90^\\circ$, góc giữa hai mặt phẳng $(SAB)$ và $(SAC)$ bằng $60^\\circ$. Thể tích của khối chóp đã cho bằng bao nhiêu?', correctAnswer: 'a^3/6', points: 3 },
+    { id: '2', title: 'Q2. Thể tích lăng trụ', content: 'Tính thể tích khối lăng trụ tam giác đều có tất cả các cạnh bằng $a$.', correctAnswer: 'a^3\\sqrt{3}/4', points: 4 },
+    { id: '3', title: 'Q3. Khoảng cách điểm đến mặt phẳng', content: 'Trong không gian $Oxyz$, tính khoảng cách từ điểm $M(1, 2, 3)$ đến mặt phẳng $(P): x + y + z - 1 = 0$.', correctAnswer: '\\sqrt{3}', points: 5 },
+    { id: '4', title: 'Q4. Thể tích chóp nâng cao', content: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình vuông cạnh $a$. Cạnh bên $SA$ vuông góc với mặt phẳng đáy và $SA = a\\sqrt{2}$. Tính thể tích khối chóp $S.ABCD$.', correctAnswer: 'a^3\\sqrt{2}/3', points: 6 }
+  ]
 };
 
 export default function ContestWorkspace() {
@@ -45,7 +41,8 @@ export default function ContestWorkspace() {
   const navigate = useNavigate();
   const textareaRef = useRef(null);
   
-  const problem = MOCK_PROBLEMS[problemId] || MOCK_PROBLEMS['1'];
+  const contestProblems = ALL_PROBLEMS[contestId] || ALL_PROBLEMS['weekly-1'];
+  const problem = contestProblems.find(p => p.id === problemId) || contestProblems[0];
 
   const [explanationText, setExplanationText] = useState('');
   const [finalAnswer, setFinalAnswer] = useState('');
@@ -127,7 +124,8 @@ export default function ContestWorkspace() {
       setTimeout(() => {
         setIsSubmitting(false);
         const nextId = String(parseInt(problemId) + 1);
-        if (MOCK_PROBLEMS[nextId]) {
+        const nextProblem = contestProblems.find(p => p.id === nextId);
+        if (nextProblem) {
           setExplanationText('');
           setFinalAnswer('');
           navigate(`/contest/${contestId}/workspace/${nextId}`);
