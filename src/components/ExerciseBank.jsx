@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import lessons from '../data/lessons.json';
 
-export default function ExerciseBank({ isOpen, onClose, onSelectLesson, onSendToAI }) {
+export default function ExerciseBank({ isOpen, onClose, onSelectLesson, onSelectExercise }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState('grid'); // grid | list
@@ -143,6 +143,7 @@ export default function ExerciseBank({ isOpen, onClose, onSelectLesson, onSendTo
                         <ChevronRight size={14} />
                       </button>
                       <button
+                        onClick={() => onSelectExercise && onSelectExercise(lesson)}
                         className="w-full flex items-center justify-between px-5 py-3 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-2xl text-xs font-black text-violet-400 uppercase tracking-widest transition-all"
                       >
                         <span className="flex items-center gap-2"><ListIcon size={14} /> Bài tập tự luyện</span>

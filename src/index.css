@@ -21,7 +21,7 @@
 
 @layer base {
   body {
-    @apply m-0 p-0 overflow-hidden transition-colors duration-500;
+    @apply m-0 p-0 overflow-x-hidden overflow-y-auto transition-colors duration-500;
     background-color: var(--bg-color);
     color: var(--text-main);
     font-family: 'Inter', sans-serif;
