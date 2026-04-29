@@ -400,6 +400,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       setError('Vui lòng nhập đề bài để bắt đầu.');
       return;
     }
+    if (loading) return; // Prevent multiple simultaneous requests
     setLoading(true);
     setError('');
     setCompletedSteps(new Set());
@@ -425,7 +426,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
         const response = await axios.post(apiUrl, {
           query,
           image: uploadedImage
-        });
+        }, { timeout: 60000 }); // 60s timeout
 
         const data = response.data;
         setGeometryData(data);
@@ -450,7 +451,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
         const response = await axios.post(apiUrl, {
           query: promptInput,
           image: uploadedImage
-        });
+        }, { timeout: 60000 }); // 60s timeout
 
         setAlgebraData(response.data);
         setShowAlgebraSolution(true);
@@ -1038,6 +1039,31 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
             <RotateCcw size={18} />
           </button>
         </div>
+
+        {isWorkspaceMode && loading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+              <p className="text-cyan-400 font-bold tracking-widest uppercase text-sm animate-pulse">Đang phân tích AI...</p>
+            </div>
+          </div>
+        )}
+
+        {isWorkspaceMode && error && !loading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-8">
+            <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-2xl flex flex-col items-center max-w-md text-center shadow-2xl">
+              <AlertCircle size={48} className="text-red-500 mb-4" />
+              <h3 className="text-red-400 font-bold mb-2">Lỗi AI</h3>
+              <p className="text-red-300 text-sm mb-4 leading-relaxed">{error}</p>
+              <button 
+                onClick={() => setError('')}
+                className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl transition-colors font-bold text-xs uppercase tracking-widest"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="absolute inset-0 z-0">
           <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-500/10 blur-[150px] rounded-full -translate-y-1/2 translate-x-1/2" />

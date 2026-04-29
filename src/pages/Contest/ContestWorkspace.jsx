@@ -179,6 +179,15 @@ export default function ContestWorkspace() {
           </div>
 
           <button 
+            onClick={handleResetCamera}
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-lg bg-zinc-800 text-white hover:bg-zinc-700 transition-colors shadow-sm border border-zinc-700"
+          >
+            <Play size={12} />
+            Khởi Tạo / Reset
+          </button>
+          
+          <button 
             onClick={handleSubmit}
             disabled={isSubmitting}
             className={`flex items-center gap-2 px-6 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${
@@ -328,14 +337,6 @@ export default function ContestWorkspace() {
           {/* Pane Phải: Trực quan 3D */}
           <Panel defaultSize={50} minSize={30}>
             <div className="h-full w-full relative bg-[#050505] flex flex-col">
-              <button 
-                onClick={handleResetCamera}
-                className="absolute top-4 right-4 z-10 px-3 py-2 bg-zinc-900/80 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-lg backdrop-blur-md transition-all border border-zinc-800 shadow-xl flex items-center gap-2 text-xs font-bold"
-                title="Khởi tạo lại hình khối 3D hoặc Reset góc nhìn"
-              >
-                <Play size={14} fill="currentColor" className="text-cyan-500" /> Khởi Tạo / Reset
-              </button>
-              
               <div className="flex-1">
                 <App isWorkspaceMode={true} initialProblem={{ title: problem.title, content: problem.content }} />
               </div>
