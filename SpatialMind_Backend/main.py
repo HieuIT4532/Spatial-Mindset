@@ -45,8 +45,8 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_api_key_here":
 
 app = FastAPI(
     title="SpatialMind API with Gemini AI",
-    description="API cho ứng dụng SpatialMind, kết hợp Gemini và SymPy",
-    version="v.1.0"
+    description="API cho ứng dụng SpatialMind v3.0 — Auth, Gallery, AI Proxy, Notifications",
+    version="v3.0"
 )
 
 app.add_middleware(
@@ -57,9 +57,97 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── v3.0: Wire Notification Routes ──
+try:
+    from notification_routes import notification_router
+    app.include_router(notification_router)
+    logging.info("Notification routes loaded successfully")
+except Exception as e:
+    logging.warning(f"Notification routes not loaded: {e}")
+
+# ── v3.0: AI Proxy (Key Rotation + Caching) ──
+try:
+    from ai_proxy import get_ai_proxy
+    ai_proxy = get_ai_proxy()
+    logging.info(f"AI Proxy loaded with {len(ai_proxy.keys)} key(s)")
+except Exception as e:
+    ai_proxy = None
+    logging.warning(f"AI Proxy not loaded: {e}")
+
+# ── v3.0: Health & Gallery Endpoints ──
+
+@app.get("/api/health")
+async def health_check():
+    """Health check + AI proxy status"""
+    proxy_health = ai_proxy.health_report() if ai_proxy else {"status": "not_loaded"}
+    return {
+        "status": "ok",
+        "version": "3.0",
+        "gemini_configured": bool(GEMINI_API_KEY),
+        "ai_proxy": proxy_health,
+    }
+
+# Gallery: In-memory store (upgrade to Firestore in production)
+_gallery_posts = []
+
+@app.get("/api/gallery/feed")
+async def gallery_feed(sort: str = "hot", page: int = 1, search: str = None):
+    """Lấy danh sách bài đăng gallery"""
+    posts = _gallery_posts.copy()
+    if search:
+        posts = [p for p in posts if search.lower() in p.get("title", "").lower() or search.lower() in p.get("problem", "").lower()]
+    if sort == "hot":
+        posts.sort(key=lambda p: p.get("votes", 0), reverse=True)
+    elif sort == "new":
+        posts.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    per_page = 20
+    start = (page - 1) * per_page
+    return {"posts": posts[start:start + per_page], "total": len(posts)}
+
+@app.post("/api/gallery/submit")
+async def gallery_submit(request: Request):
+    """Submit bài lên gallery"""
+    data = await request.json()
+    post = {
+        "id": f"post-{len(_gallery_posts) + 1}-{int(time.time())}",
+        "title": data.get("title", "Untitled"),
+        "problem": data.get("problem", ""),
+        "difficulty": data.get("difficulty", "medium"),
+        "geometryData": data.get("geometryData"),
+        "authorName": data.get("authorName", "Ẩn danh"),
+        "authorUid": data.get("uid", ""),
+        "votes": 0,
+        "created_at": date.today().isoformat(),
+        "date": "Hôm nay",
+    }
+    _gallery_posts.append(post)
+    return {"status": "ok", "id": post["id"]}
+
+@app.post("/api/gallery/{post_id}/vote")
+async def gallery_vote(post_id: str, request: Request):
+    """Vote cho bài"""
+    data = await request.json()
+    direction = data.get("direction", "up")
+    for p in _gallery_posts:
+        if p["id"] == post_id:
+            p["votes"] += 1 if direction == "up" else -1
+            return {"status": "ok", "votes": p["votes"]}
+    raise HTTPException(status_code=404, detail="Post not found")
+
+@app.post("/api/user/sync-beacon")
+async def sync_beacon(request: Request):
+    """Beacon sync endpoint (gọi khi đóng tab)"""
+    try:
+        body = await request.body()
+        data = json.loads(body)
+        logging.info(f"Beacon sync received: uid={data.get('uid')}, xp={data.get('xp')}")
+        return {"status": "ok"}
+    except Exception:
+        return {"status": "ignored"}
+
 # ----------------- Rate Limiting Middleware -----------------
 ip_last_request = {}
-RATE_LIMIT_SECONDS = 10
+RATE_LIMIT_SECONDS = 3
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
@@ -71,7 +159,7 @@ async def rate_limit_middleware(request: Request, call_next):
     ]
     
     if request.url.path in limited_endpoints:
-        # Lấy IP thật của client (hỗ trợ proxy như Render/Cloudflare)
+        # Lấy IP thật của client
         forwarded_for = request.headers.get("X-Forwarded-For")
         if forwarded_for:
             client_ip = forwarded_for.split(",")[0].strip()
@@ -84,9 +172,10 @@ async def rate_limit_middleware(request: Request, call_next):
             time_passed = current_time - ip_last_request[client_ip]
             if time_passed < RATE_LIMIT_SECONDS:
                 wait_time = int(RATE_LIMIT_SECONDS - time_passed)
-                return JSONResponse(
+                # Dùng HTTPException để FastAPI tự động xử lý CORS headers
+                raise HTTPException(
                     status_code=429,
-                    content={"detail": f"Hệ thống đang chống quá tải. Vui lòng đợi {wait_time} giây trước khi đặt câu hỏi tiếp theo."}
+                    detail=f"Hệ thống đang chống quá tải. Vui lòng đợi {wait_time} giây trước khi đặt câu hỏi tiếp theo."
                 )
         
         # Cập nhật thời gian request mới nhất cho IP này
@@ -421,11 +510,10 @@ def get_socratic_hint(request: SocraticRequest):
         raise HTTPException(status_code=500, detail="Gemini API chưa được cấu hình.")
     
     try:
-        prompt = SOCRATIC_TUTOR_PROMPT.format(
-            problem=request.problem_statement,
-            wrong_step=request.student_wrong_step,
-            theory=request.theory_markdown
-        )
+        # Sử dụng .replace thay cho .format để tránh lỗi với dấu ngoặc nhọn trong LaTeX/JSON
+        prompt = SOCRATIC_TUTOR_PROMPT.replace("{problem}", request.problem_statement) \
+                                     .replace("{wrong_step}", request.student_wrong_step) \
+                                     .replace("{theory}", request.theory_markdown)
 
         response = gemini_client.models.generate_content(
             model="gemini-3-flash-preview", 
@@ -511,6 +599,29 @@ def get_leaderboard():
     # Thêm user hiện tại vào board
     board = default_board + [{"name": user_data['name'], "weeklyXP": int(user_data['xp'] * 0.6), "rank": user_data['rank']}]
     return sorted(board, key=lambda x: x['weeklyXP'], reverse=True)
+
+@app.get("/api/daily-challenge")
+def get_daily_challenges():
+    # Chọn ngẫu nhiên 3 thử thách (Dễ, Vừa, Khó) dựa trên ngày
+    today_str = date.today().isoformat()
+    # Seed cho random dựa trên ngày để mọi người nhận được cùng thử thách trong ngày
+    import zlib
+    seed_val = zlib.adler32(today_str.encode())
+    random.seed(seed_val)
+    
+    easy = [c for c in CHALLENGE_BANK if c.get('difficulty') == 'easy']
+    medium = [c for c in CHALLENGE_BANK if c.get('difficulty') == 'medium']
+    hard = [c for c in CHALLENGE_BANK if c.get('difficulty') == 'hard']
+    
+    selected = []
+    if easy: selected.append(random.choice(easy))
+    if medium: selected.append(random.choice(medium))
+    if hard: selected.append(random.choice(hard))
+    
+    # Reset seed để không ảnh hưởng đến các phần khác
+    random.seed()
+    
+    return {"challenges": selected}
 
 # --- Gemini Chat Proxy Endpoint ---
 # Proxy chuyển tiếp request từ Frontend sang Google Gemini API
