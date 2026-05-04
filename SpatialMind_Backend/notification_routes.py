@@ -35,7 +35,7 @@ def load_subscribers():
     try:
         with open(SUBSCRIBERS_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except:
+    except Exception:
         return []
 
 def save_subscribers(subs):

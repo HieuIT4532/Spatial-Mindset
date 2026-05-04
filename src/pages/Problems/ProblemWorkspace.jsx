@@ -20,9 +20,11 @@ export default function ProblemWorkspace() {
   const textareaRef = useRef(null);
   
   // Lấy chi tiết bài toán
-  const { data: problem, isLoading } = useQuery({
+  // Fix I6: Thêm isError để xử lý lỗi fetch bài toán (network error, 404, v.v.)
+  const { data: problem, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['problem', id],
     queryFn: () => fetchProblemById(id),
+    retry: 1,
   });
 
   const [explanationText, setExplanationText] = useState('');
@@ -126,6 +128,25 @@ export default function ProblemWorkspace() {
           <div className="absolute inset-2 rounded-full border border-violet-500/20 border-t-violet-400/60 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '3s' }} />
         </div>
         <p className="text-xs text-slate-500 font-bold uppercase tracking-widest animate-pulse">Đang tải đề bài...</p>
+      </div>
+    );
+  }
+
+  // Fix I6: Hiển thị error state rõ ràng thay vì chỉ "Không tìm thấy bài toán!"
+  if (isError) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center font-sans bg-[#0a0a0a] gap-4 text-center p-8">
+        <div className="text-4xl">❌</div>
+        <h2 className="text-xl font-black text-white">Không thể tải bài toán</h2>
+        <p className="text-sm text-zinc-500 max-w-sm">{error?.message || 'Bài toán không tồn tại hoặc mất kết nối.'}</p>
+        <div className="flex gap-3 mt-2">
+          <button onClick={() => refetch()} className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-colors">
+            Thử lại
+          </button>
+          <button onClick={() => navigate('/problems')} className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors">
+            ← Quay về
+          </button>
+        </div>
       </div>
     );
   }

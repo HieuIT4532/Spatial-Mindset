@@ -60,6 +60,19 @@
     opacity: 0.2;
     border-radius: 20px;
   }
+  
+  /* Mobile Utils */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .canvas-container {
+    touch-action: none;
+  }
 }
 
 /* Hiệu ứng chuyển cảnh trang */

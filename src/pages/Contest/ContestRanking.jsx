@@ -11,17 +11,20 @@ const useLiveRanking = (contestId) => {
 
   const fetchRanking = async () => {
     try {
+      setLoading(true); // Bắt đầu fetch
       const result = await apiClient.get(`/api/contest/ranking/${contestId}`);
       setData(result);
     } catch (error) {
       console.error("Fetch Ranking Error:", error);
+    } finally {
+      setLoading(false); // Fix W6: luôn reset loading dù thành công hay lỗi
     }
   };
 
   useEffect(() => {
     fetchRanking();
-    // Poll dữ liệu mỗi 10 giây để giả lập real-time
-    const interval = setInterval(fetchRanking, 10000);
+    // Poll dữ liệu mỗi 30 giây
+    const interval = setInterval(fetchRanking, 30000);
     return () => clearInterval(interval);
   }, [contestId]);
 

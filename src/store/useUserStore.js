@@ -10,10 +10,11 @@ const useUserStore = create(
       level: 1,
       
       gainXP: (amount) => {
+        const oldLevel = get().level; // Fix W3: lưu level cũ TRƯỚC khi set
         const newXP = get().xp + amount;
         const newLevel = Math.floor(newXP / 1000) + 1;
         set({ xp: newXP, level: newLevel });
-        return { leveledUp: newLevel > get().level };
+        return { leveledUp: newLevel > oldLevel }; // so sánh với level cũ đã lưu
       },
       
       setXP: (newXP) => {

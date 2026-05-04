@@ -71,7 +71,7 @@ ALLOWED_ORIGINS: list[str] = (
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,
+    allow_credentials=True, # Fix I8: Bật credentials cho auth
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
@@ -95,7 +95,8 @@ except Exception as e:
     logging.warning(f"AI Proxy not loaded: {e}")
 
 # ── v3.1: SQLite Gallery Store ──────────────────────────────────────────────
-_DB_PATH = os.path.join(get_appdata_dir() if False else os.path.dirname(__file__), 'gallery.db')
+# Fix C1: Xóa dead code get_appdata_dir() if False — luôn dùng thư mục backend
+_DB_PATH = os.path.join(os.path.dirname(__file__), 'gallery.db')
 
 
 @contextmanager
@@ -638,6 +639,9 @@ def solve_algebra(request: AlgebraRequest):
             steps=data.get("steps", []),
             function_string=data.get("function_string")
         )
+    except Exception as e:
+        logger.error(f"Algebra solver error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 # --- Problem Evaluation (AI Scoring) ---
 class EvaluationRequest(BaseModel):
     problem_id: str
@@ -654,6 +658,7 @@ class EvaluationResponse(BaseModel):
 @app.post("/api/evaluate-problem", response_model=EvaluationResponse)
 async def evaluate_problem(req: EvaluationRequest):
     """Chấm điểm bài làm bằng AI (Gemini) + So khớp toán học (SymPy)."""
+    start_time = time.time()
     try:
         # 1. So khớp toán học cơ bản (nếu có thể parse được answer)
         # Ta cố gắng parse kết quả của học sinh và kết quả mong đợi (nếu có trong context)
@@ -686,6 +691,9 @@ async def evaluate_problem(req: EvaluationRequest):
             )
             ai_data = json.loads(response.text)
             
+            elapsed = time.time() - start_time
+            logger.info(f"[Perf] AI Evaluation took {elapsed:.2f}s for problem {req.problem_id}. Result: {ai_data.get('status')}")
+
             return EvaluationResponse(
                 status=ai_data.get("status", "WA"),
                 feedback=ai_data.get("feedback", "Không thể xác định."),
@@ -695,6 +703,10 @@ async def evaluate_problem(req: EvaluationRequest):
         else:
             # Fallback nếu không có Gemini
             is_valid = len(req.explanation) > 50 and any(kw in req.explanation.lower() for kw in ["ta có", "suy ra", "vuông góc"])
+            
+            elapsed = time.time() - start_time
+            logger.info(f"[Perf] Fallback Evaluation took {elapsed:.2f}s for problem {req.problem_id}.")
+            
             return EvaluationResponse(
                 status="AC" if is_valid else "WA",
                 feedback="Hệ thống AI đang bận, đã chấm điểm dựa trên cấu trúc lập luận." if is_valid else "Trình bày quá ngắn hoặc thiếu logic.",
@@ -847,7 +859,7 @@ def load_json_data(filename, default_value):
     try:
         with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except:
+    except Exception:
         return default_value
 
 def save_json_data(filename, data):

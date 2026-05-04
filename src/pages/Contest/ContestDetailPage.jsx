@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, Calendar, Trophy, AlertCircle, PlayCircle, BarChart2, BookOpen } from 'lucide-react';
+import { Clock, Calendar, Trophy, AlertCircle, PlayCircle, BarChart2, BookOpen, Users } from 'lucide-react';
 
 export default function ContestDetailPage() {
   const { contestId } = useParams();
@@ -8,6 +8,14 @@ export default function ContestDetailPage() {
 
   // Mock data for the contest
   const contestName = contestId?.includes('weekly') ? `Weekly Contest ${contestId.replace('weekly-', '')}` : 'SpatialMind Contest';
+  
+  // Fix I4: Generate số người tham gia (pseudo-random nhưng ổn định theo contestId)
+  const participantCount = React.useMemo(() => {
+    let hash = 0;
+    const str = contestId || 'default';
+    for (let i = 0; i < str.length; i++) hash = (hash << 5) - hash + str.charCodeAt(i);
+    return Math.abs(hash % 5000) + 1200; // Số ảo từ 1200 - 6200
+  }, [contestId]);
 
   return (
     <div className="min-h-screen font-sans bg-gray-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-gray-300 py-24 px-4 md:px-8 transition-colors duration-200">
@@ -28,6 +36,9 @@ export default function ContestDetailPage() {
                 </span>
                 <span className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-mono">
                   <Clock size={14} /> 08:00 AM - 09:30 AM
+                </span>
+                <span className="flex items-center gap-1.5 text-sm text-cyan-600 dark:text-cyan-400 font-bold ml-auto bg-cyan-50 dark:bg-cyan-900/20 px-3 py-1 rounded-full border border-cyan-100 dark:border-cyan-800">
+                  <Users size={14} /> {participantCount.toLocaleString()} Tham gia
                 </span>
               </div>
               

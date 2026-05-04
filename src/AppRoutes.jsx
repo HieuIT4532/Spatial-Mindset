@@ -30,7 +30,8 @@ export default function AppRoutes() {
         <Route path="/contest/:contestId/workspace/:problemId" element={<ContestWorkspace />} />
         <Route path="/contest/:contestId/ranking" element={<ContestRanking />} />
         <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/discuss" element={<App />} />
+        {/* Fix W4: /discuss chưa có page riêng — redirect tạm về homepage */}
+        <Route path="/discuss" element={<Navigate to="/" replace />} />
         
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="profile" replace />} />

@@ -33,8 +33,9 @@ export default function ContestWorkspace() {
   const navigate = useNavigate();
   const textareaRef = useRef(null);
   
-  const contestProblems = ALL_PROBLEMS[contestId] || ALL_PROBLEMS['weekly-1'];
-  const problem = contestProblems.find(p => p.id === problemId) || contestProblems[0];
+  // Fix W2: Không fallback cứng sang weekly-1 — hiển thị lỗi nếu contest không tồn tại
+  const contestProblems = ALL_PROBLEMS[contestId] || null;
+  const problem = contestProblems?.find(p => p.id === problemId) || contestProblems?.[0] || null;
 
   const [explanationText, setExplanationText] = useState('');
   const [finalAnswer, setFinalAnswer] = useState('');
@@ -45,7 +46,8 @@ export default function ContestWorkspace() {
   const [showMathBuilder, setShowMathBuilder] = useState(false);
   const [mathInput, setMathInput] = useState('');
 
-  const { activeContestId, timeLeft, isStarted, startContest, decrementTime, addPenalty } = useContestStore();
+  const { activeContestId, timeLeft, isStarted, startContest, decrementTime, addPenalty,
+          isEvaluating, setIsEvaluating, setAiResult, submitContestResult } = useContestStore();
 
   // FIX BLACK SCREEN: Đảm bảo App component không bị block bởi LandingPage
   useEffect(() => {
@@ -56,16 +58,27 @@ export default function ContestWorkspace() {
     return () => clearTimeout(readyTimer);
   }, []);
 
-  // Timer & Contest State Initialization
+  // Fix C3: Dùng useRef để tránh timer leak khi navigate giữa các bài trong contest
+  const timerRef = useRef(null);
+
   useEffect(() => {
     if (!isStarted || activeContestId !== contestId) {
       startContest(contestId, 90 * 60);
     }
-    
-    const timer = setInterval(() => {
+
+    // Clear timer cũ nếu có trước khi tạo mới
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    timerRef.current = setInterval(() => {
       decrementTime();
     }, 1000);
-    return () => clearInterval(timer);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [contestId]); // Chỉ depend vào contestId để tránh re-init loop
 
   const formatTime = (seconds) => {
@@ -130,9 +143,12 @@ export default function ContestWorkspace() {
     }
 
     setIsSubmitting(true);
+    setIsEvaluating(true); // Fix Lỗi 2: Cập nhật trạng thái AI đang chấm
     setToast(null);
 
     const result = await evaluateMathProblem(problemId, explanationText, finalAnswer);
+    setAiResult(result); // Fix Lỗi 2: Lưu kết quả AI vào store
+    setIsEvaluating(false);
 
     if (result.status === 'AC') {
       showToast('success', `Accepted! ${result.feedback}`);
@@ -145,14 +161,8 @@ export default function ContestWorkspace() {
           setFinalAnswer('');
           navigate(`/contest/${contestId}/workspace/${nextId}`);
         } else {
-          // Gửi kết quả lên server khi kết thúc kỳ thi
-          apiClient.post('/api/contest/submit', {
-            contest_id: contestId,
-            username: localStorage.getItem('spatialmind_user') || 'Ẩn danh',
-            score: 100, // Giả sử hoàn thành hết là 100 điểm
-            finish_time: formatTime(90 * 60 - timeLeft),
-            penalty: 0
-          }).finally(() => {
+          // Fix Lỗi 3: Dùng submitContestResult từ store (đã chuẩn hóa dữ liệu)
+          submitContestResult(contestId, 100).finally(() => {
             navigate(`/contest/${contestId}/ranking`);
           });
         }
@@ -164,11 +174,37 @@ export default function ContestWorkspace() {
     }
   };
 
+  // Fix I2: Keyboard shortcut Ctrl+Enter để submit bài
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!isSubmitting && !isEvaluating) handleSubmit();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSubmitting, isEvaluating, finalAnswer, explanationText]);
+
   // Reset 3D Camera / Generate geometry by dispatching custom events to App.jsx
   const handleResetCamera = () => {
     window.dispatchEvent(new CustomEvent('spatialmind-generate'));
     window.dispatchEvent(new CustomEvent('spatialmind-reset-view'));
   };
+
+  // Fix W2: Hiển thị lỗi nếu contest không tồn tại thay vì fallback cứng
+  if (!contestProblems || !problem) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center font-sans bg-[#0a0a0a] gap-4 text-center p-8">
+        <div className="text-4xl">🔍</div>
+        <h2 className="text-xl font-black text-white">Không tìm thấy kỳ thi</h2>
+        <p className="text-sm text-zinc-500 max-w-sm">Contest <code className="text-cyan-400">{contestId}</code> chưa có dữ liệu hoặc đang được cập nhật. Vui lòng kiểm tra lại URL.</p>
+        <button onClick={() => navigate('/contest')} className="mt-4 px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors">
+          ← Quay về danh sách kỳ thi
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-full font-sans bg-[#0a0a0a] flex flex-col overflow-hidden text-gray-300">
@@ -204,15 +240,19 @@ export default function ContestWorkspace() {
           
           <button 
             onClick={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isEvaluating}
             className={`flex items-center gap-2 px-6 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${
-              isSubmitting 
+              isSubmitting || isEvaluating
                 ? 'bg-green-500/50 text-white/70 cursor-not-allowed' 
                 : 'bg-green-500 text-white hover:bg-green-600 shadow-green-500/20 shadow-lg'
             }`}
           >
-            {isSubmitting ? <RotateCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
-            {isSubmitting ? 'Đang chấm...' : 'Submit'}
+            {isEvaluating
+              ? <><RotateCw className="animate-spin" size={16} /> AI đang chấm...</>
+              : isSubmitting
+              ? <><RotateCw className="animate-spin" size={16} /> Đang xử lý...</>
+              : <><CheckCircle size={16} /> Submit</>
+            }
           </button>
         </div>
       </div>

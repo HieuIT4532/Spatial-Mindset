@@ -192,16 +192,21 @@ export const fetchAdminProblems = async () => {
 
 export const approveProblem = async (id) => {
   await delay(500);
-  const problem = MOCK_PROBLEMS.find(p => p.id === id);
-  if (problem) problem.status = 'published';
+  // Fix W5: Tạo object mới thay vì mutate trực tiếp mảng module-scope
+  const index = MOCK_PROBLEMS.findIndex(p => p.id === id);
+  if (index !== -1) {
+    MOCK_PROBLEMS[index] = { ...MOCK_PROBLEMS[index], status: 'published' };
+  }
   return true;
 };
 
 export const rejectProblem = async (id) => {
   await delay(500);
-  // Thực tế sẽ xóa hoặc set status rejected
+  // Fix W5: Đánh dấu 'rejected' thay vì splice (tránh index shift và mất dữ liệu)
   const index = MOCK_PROBLEMS.findIndex(p => p.id === id);
-  if (index !== -1) MOCK_PROBLEMS.splice(index, 1);
+  if (index !== -1) {
+    MOCK_PROBLEMS[index] = { ...MOCK_PROBLEMS[index], status: 'rejected' };
+  }
   return true;
 };
 

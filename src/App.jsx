@@ -146,6 +146,14 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
   const [graphExpression, setGraphExpression] = useState('sin(x)');
   const [algebraData, setAlgebraData] = useState(null);
   const [showAlgebraSolution, setShowAlgebraSolution] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Resize listener for Mobile
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Settings from Store
   const {
@@ -489,7 +497,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       setParticleTrigger(t => t + 2); // Big confetti
     } else {
       setQuizResult('wrong');
-      setXP(prev => Math.max(0, prev - 10)); // Penalty
+      setXP(Math.max(0, xp - 10)); // Fix I5: setXP nhận số trực tiếp, không phải callback
     }
   };
 
@@ -534,11 +542,11 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
 
       {/* ── Mode switcher sub-bar (dưới Navbar) ── */}
       {!isWorkspaceMode && (
-        <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-6 py-1.5 border-b border-white/5"
+        <div className="fixed top-14 left-0 right-0 z-[90] flex items-center justify-between px-3 md:px-6 py-1.5 border-b border-white/5 overflow-x-auto no-scrollbar"
           style={{ background: 'rgba(2,6,23,0.7)', backdropFilter: 'blur(12px)' }}
         >
           {/* Mode tabs */}
-          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
+          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/5 shrink-0">
             {[
               { id: 'GEOMETRY', icon: Box, label: 'Hình học 3D' },
               { id: 'VECTOR', icon: Dna, label: 'Vector' },
@@ -565,7 +573,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
           </div>
 
           {/* Quick action tools */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0 ml-4">
             <button
               onClick={() => setIsExplorerOpen(e => !e)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isExplorerOpen ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20' : 'text-slate-500 hover:text-cyan-400 hover:bg-white/5'
@@ -595,7 +603,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       {!isWorkspaceMode && (
         <motion.div
           initial={false}
-          animate={window.innerWidth < 768 ? {
+          animate={isMobile ? {
             width: '100%',
             height: isSidebarCollapsed ? 90 : '75vh',
             x: 0,
@@ -619,7 +627,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
           }`}
         >
           {/* ✨ Premium Drag Handle for Mobile */}
-          {window.innerWidth < 768 && (
+          {isMobile && (
             <div 
               className="w-full flex flex-col items-center py-4 cursor-grab active:cursor-grabbing"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -639,9 +647,9 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
 
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className={`absolute ${window.innerWidth < 768 ? 'top-6 right-8' : 'top-8 right-8'} p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all z-[110] border border-white/5 hover:border-cyan-500/30 shadow-lg`}
+            className={`absolute ${isMobile ? 'top-6 right-8' : 'top-8 right-8'} p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all z-[110] border border-white/5 hover:border-cyan-500/30 shadow-lg`}
           >
-            {isSidebarCollapsed ? (window.innerWidth < 768 ? <PanelLeftOpen className="rotate-90" size={18} /> : <PanelLeftOpen size={18} />) : (window.innerWidth < 768 ? <PanelLeftClose className="rotate-90" size={18} /> : <PanelLeftClose size={18} />)}
+            {isSidebarCollapsed ? (isMobile ? <PanelLeftOpen className="rotate-90" size={18} /> : <PanelLeftOpen size={18} />) : (isMobile ? <PanelLeftClose className="rotate-90" size={18} /> : <PanelLeftClose size={18} />)}
           </button>
 
           <div className="p-8 flex flex-col h-full overflow-hidden">
@@ -1101,7 +1109,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
             )}
           </div>
         ) : (
-          <Canvas dpr={[1, 2]} shadows gl={{ antialias: true }}>
+          <Canvas className="canvas-container" dpr={[1, 2]} shadows gl={{ antialias: true }}>
             <Suspense fallback={<SceneLoader />}>
               <PerspectiveCamera makeDefault fov={45} position={[8, 6, 12]} />
               <color attach="background" args={[theme === 'dark' ? '#020617' : '#e0f2fe']} />

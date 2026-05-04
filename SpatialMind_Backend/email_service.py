@@ -53,7 +53,7 @@ def get_today_challenge_preview():
         easy = [c for c in challenges if c['difficulty'] == 'easy']
         if easy:
             return random.choice(easy)
-    except:
+    except Exception:
         pass
     return {
         "title": "Hình chóp S.ABCD",

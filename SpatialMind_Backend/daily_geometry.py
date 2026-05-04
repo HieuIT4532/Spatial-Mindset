@@ -16,7 +16,7 @@ def load_challenges():
     try:
         with open(_challenge_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except:
+    except Exception:
         return []
 
 def seed_random(seed: int):
