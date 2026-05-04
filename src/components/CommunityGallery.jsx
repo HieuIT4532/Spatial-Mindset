@@ -16,7 +16,7 @@ import {
   User, Calendar, Zap, Triangle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import { apiClient } from '../api/client';
 
 const SORT_OPTIONS = [
   { id: 'hot', label: '🔥 Hot', icon: Flame },
@@ -46,23 +46,21 @@ export default function CommunityGallery({
   const [page, setPage] = useState(1);
   const { user, isAuthenticated } = useAuth();
 
-  const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
-
   // ── Load posts ──
   const loadPosts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${baseUrl}/api/gallery/feed`, {
+      const res = await apiClient.get('/api/gallery/feed', {
         params: { sort: sortBy, page, search: searchQuery || undefined },
       });
-      setPosts(res.data.posts || []);
+      setPosts(res.posts || []);
     } catch {
       // Fallback: mock data cho demo
       setPosts(MOCK_POSTS);
     } finally {
       setLoading(false);
     }
-  }, [sortBy, page, searchQuery, baseUrl]);
+  }, [sortBy, page, searchQuery]);
 
   useEffect(() => {
     if (isOpen) loadPosts();
@@ -72,7 +70,7 @@ export default function CommunityGallery({
   const handleVote = async (postId, direction) => {
     if (!isAuthenticated) return;
     try {
-      await axios.post(`${baseUrl}/api/gallery/${postId}/vote`, {
+      await apiClient.post(`/api/gallery/${postId}/vote`, {
         uid: user.uid,
         direction, // 'up' | 'down'
       });

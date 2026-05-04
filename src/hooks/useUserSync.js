@@ -119,9 +119,8 @@ export function useUserSync({ xp, streak, solvedProblems, setXP, setStreak, setS
       localStorage.setItem('spatialmind_xp', String(xp));
       localStorage.setItem('spatialmind_streak', String(streak));
       if (navigator.sendBeacon) {
-        const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
         navigator.sendBeacon(
-          `${baseUrl}/api/user/sync-beacon`,
+          `/api/user/sync-beacon`,
           JSON.stringify({ uid: user.uid, xp, streak, solvedProblems })
         );
       }

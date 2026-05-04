@@ -8,6 +8,7 @@ import 'katex/dist/katex.min.css';
 import { ArrowLeft, CheckCircle, Clock, Play, AlertCircle, Sparkles } from 'lucide-react';
 import App from '../../App'; // Re-use 3D Canvas
 import useContestStore from '../../store/useContestStore';
+import { apiClient } from '../../api/client';
 import 'mathlive';
 
 // Mock data for problems
@@ -108,23 +109,18 @@ export default function ContestWorkspace() {
     }, 0);
   };
   const evaluateMathProblem = async (probId, explain, answer) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`[AI PROMPT] Đánh giá bài giải: Chỉ trả về trạng thái AC khi học sinh viết rõ các bước xác định đường cao, góc, hoặc khoảng cách. Nếu học sinh chỉ gõ bừa kết quả vào phần trình bày, hãy đánh WA.`);
-        
-        const isAnswerCorrect = answer.replace(/\s/g, '') === problem.correctAnswer.replace(/\s/g, '');
-        const explainLower = explain.toLowerCase();
-        const hasLogicalExplanation = explainLower.length > 20 && (explainLower.includes('đường cao') || explainLower.includes('góc') || explainLower.includes('khoảng cách') || explainLower.includes('vuông góc') || explainLower.includes('ta có') || explainLower.includes('suy ra'));
-
-        if (isAnswerCorrect && hasLogicalExplanation) {
-          resolve({ status: 'AC', message: 'Lập luận xuất sắc và chi tiết!' });
-        } else if (isAnswerCorrect && !hasLogicalExplanation) {
-          resolve({ status: 'WA', message: 'Kết quả đúng nhưng bạn cần trình bày rõ các bước (đường cao, góc, khoảng cách, v.v).' });
-        } else {
-          resolve({ status: 'WA', message: 'Kết quả và lập luận chưa chính xác.' });
-        }
-      }, 2500);
-    });
+    try {
+      const result = await apiClient.post('/api/evaluate-problem', {
+        problem_id: probId,
+        explanation: explain,
+        answer: answer,
+        problem_context: problem.content
+      });
+      return result;
+    } catch (error) {
+      console.error("Evaluation Error:", error);
+      return { status: 'WA', feedback: 'Lỗi kết nối máy chủ chấm điểm.' };
+    }
   };
 
   const handleSubmit = async () => {
@@ -139,7 +135,7 @@ export default function ContestWorkspace() {
     const result = await evaluateMathProblem(problemId, explanationText, finalAnswer);
 
     if (result.status === 'AC') {
-      showToast('success', `Accepted! ${result.message}`);
+      showToast('success', `Accepted! ${result.feedback}`);
       setTimeout(() => {
         setIsSubmitting(false);
         const nextId = String(parseInt(problemId) + 1);
@@ -149,11 +145,20 @@ export default function ContestWorkspace() {
           setFinalAnswer('');
           navigate(`/contest/${contestId}/workspace/${nextId}`);
         } else {
-          navigate(`/contest/${contestId}/ranking`);
+          // Gửi kết quả lên server khi kết thúc kỳ thi
+          apiClient.post('/api/contest/submit', {
+            contest_id: contestId,
+            username: localStorage.getItem('spatialmind_user') || 'Ẩn danh',
+            score: 100, // Giả sử hoàn thành hết là 100 điểm
+            finish_time: formatTime(90 * 60 - timeLeft),
+            penalty: 0
+          }).finally(() => {
+            navigate(`/contest/${contestId}/ranking`);
+          });
         }
       }, 1500);
     } else {
-      showToast('error', `${result.message} (+5 phút Penalty)`);
+      showToast('error', `${result.feedback} (+5 phút Penalty)`);
       setIsSubmitting(false);
       addPenalty(300);
     }

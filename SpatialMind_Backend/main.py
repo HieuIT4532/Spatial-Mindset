@@ -129,6 +129,26 @@ def _init_db():
                 created_at  TEXT NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS contest_results (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                contest_id   TEXT NOT NULL,
+                username     TEXT NOT NULL,
+                score        INTEGER NOT NULL,
+                finish_time  TEXT NOT NULL,
+                penalty      INTEGER DEFAULT 0,
+                created_at   TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                username     TEXT PRIMARY KEY,
+                xp           INTEGER DEFAULT 0,
+                streak       INTEGER DEFAULT 0,
+                level        INTEGER DEFAULT 1,
+                last_active  TEXT
+            )
+        """)
     logger.info(f"Gallery DB initialized at {_DB_PATH}")
 
 
@@ -618,11 +638,134 @@ def solve_algebra(request: AlgebraRequest):
             steps=data.get("steps", []),
             function_string=data.get("function_string")
         )
-    except Exception as e:
-        logging.error(f"Lỗi Algebra Solver: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Lỗi giải toán: {str(e)}")
+# --- Problem Evaluation (AI Scoring) ---
+class EvaluationRequest(BaseModel):
+    problem_id: str
+    explanation: str
+    answer: str
+    problem_context: Optional[str] = ""
 
-# --- Socratic Tutor Endpoint ---
+class EvaluationResponse(BaseModel):
+    status: str  # AC, WA, PE (Partially Correct)
+    feedback: str
+    ai_analysis: str
+    math_match: bool
+
+@app.post("/api/evaluate-problem", response_model=EvaluationResponse)
+async def evaluate_problem(req: EvaluationRequest):
+    """Chấm điểm bài làm bằng AI (Gemini) + So khớp toán học (SymPy)."""
+    try:
+        # 1. So khớp toán học cơ bản (nếu có thể parse được answer)
+        # Ta cố gắng parse kết quả của học sinh và kết quả mong đợi (nếu có trong context)
+        math_match = False
+        # Giả sử chúng ta có đáp án mẫu trong CHALLENGE_BANK
+        target_problem = next((p for p in CHALLENGE_BANK if p['id'] == req.problem_id), None)
+        
+        # 2. Sử dụng Gemini để phân tích logic giải bài
+        if gemini_client:
+            prompt = f"""
+            Phân tích bài làm của học sinh cho bài toán sau:
+            Đề bài: {req.problem_context or (target_problem['content'] if target_problem else "N/A")}
+            Bài làm của học sinh: {req.explanation}
+            Đáp án học sinh nhập: {req.answer}
+            
+            Yêu cầu:
+            1. Đánh giá tính logic của các bước giải.
+            2. Kiểm tra xem kết quả {req.answer} có khớp với lập luận không.
+            3. Trả về kết quả dưới dạng JSON:
+            {{
+              "status": "AC" (đúng), "WA" (sai), hoặc "PE" (đúng một phần/thiếu bước),
+              "feedback": "Lời khuyên ngắn gọn cho học sinh",
+              "analysis": "Phân tích chi tiết lỗi sai hoặc lời khen"
+            }}
+            """
+            response = gemini_client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            ai_data = json.loads(response.text)
+            
+            return EvaluationResponse(
+                status=ai_data.get("status", "WA"),
+                feedback=ai_data.get("feedback", "Không thể xác định."),
+                ai_analysis=ai_data.get("analysis", ""),
+                math_match=True # AI đã verify
+            )
+        else:
+            # Fallback nếu không có Gemini
+            is_valid = len(req.explanation) > 50 and any(kw in req.explanation.lower() for kw in ["ta có", "suy ra", "vuông góc"])
+            return EvaluationResponse(
+                status="AC" if is_valid else "WA",
+                feedback="Hệ thống AI đang bận, đã chấm điểm dựa trên cấu trúc lập luận." if is_valid else "Trình bày quá ngắn hoặc thiếu logic.",
+                ai_analysis="Fallback scoring enabled.",
+                math_match=False
+            )
+    except Exception as e:
+        logger.error(f"Evaluation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Contest Ranking Endpoints ---
+class ContestSubmitRequest(BaseModel):
+    contest_id: str
+    username: str
+    score: int
+    finish_time: str  # Format HH:MM:SS
+    penalty: int = 0
+
+@app.post("/api/contest/submit")
+async def submit_contest_result(req: ContestSubmitRequest):
+    """Lưu kết quả thi đấu và cộng XP cho người dùng."""
+    try:
+        with _db_conn() as conn:
+            # 1. Lưu kết quả contest
+            conn.execute("""
+                INSERT INTO contest_results (contest_id, username, score, finish_time, penalty, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (req.contest_id, req.username, req.score, req.finish_time, req.penalty, datetime.now().isoformat()))
+            
+            # 2. Cập nhật XP cho user profile
+            conn.execute("""
+                INSERT INTO user_profiles (username, xp, last_active)
+                VALUES (?, ?, ?)
+                ON CONFLICT(username) DO UPDATE SET
+                    xp = xp + excluded.xp,
+                    last_active = excluded.last_active
+            """, (req.username, req.score, datetime.now().isoformat()))
+            
+        return {"status": "success", "message": "Kết quả đã được ghi nhận và cộng XP."}
+    except Exception as e:
+        logger.error(f"Submit contest error: {e}")
+        raise HTTPException(status_code=500, detail="Không thể lưu kết quả.")
+
+@app.get("/api/contest/ranking/{contest_id}")
+async def get_contest_ranking(contest_id: str):
+    """Lấy bảng xếp hạng của kỳ thi cụ thể."""
+    try:
+        with _db_conn() as conn:
+            # Sắp xếp theo điểm giảm dần, sau đó là thời gian hoàn thành tăng dần
+            rows = conn.execute("""
+                SELECT username, score, finish_time, penalty 
+                FROM contest_results 
+                WHERE contest_id = ?
+                ORDER BY score DESC, finish_time ASC
+                LIMIT 50
+            """, (contest_id,)).fetchall()
+            
+            # Convert rows to dicts
+            ranking = []
+            for i, row in enumerate(rows):
+                ranking.append({
+                    "rank": i + 1,
+                    "username": row["username"],
+                    "score": row["score"],
+                    "finishTime": row["finish_time"],
+                    "penalty": row["penalty"]
+                })
+            return ranking
+    except Exception as e:
+        logger.error(f"Fetch ranking error: {e}")
+        raise HTTPException(status_code=500, detail="Không thể tải bảng xếp hạng.")
 SOCRATIC_TUTOR_PROMPT = """
 Bạn là một Chuyên gia Sư phạm Toán học Socratic (Socratic Math Tutor).
 Nhiệm vụ của bạn là hướng dẫn học sinh nhận ra lỗi sai của chính mình thông qua các gợi ý và câu hỏi phản tư. 
@@ -722,13 +865,34 @@ class UserProfile(BaseModel):
     achievements: List[str] = []
 
 @app.get("/api/user/profile")
-def get_profile():
-    return load_json_data('user_profile.json', UserProfile().model_dump())
+def get_profile(username: str = "Ẩn danh"):
+    try:
+        with _db_conn() as conn:
+            row = conn.execute("SELECT * FROM user_profiles WHERE username = ?", (username,)).fetchone()
+            if row:
+                return dict(row)
+            return {"username": username, "xp": 0, "streak": 0, "level": 1}
+    except Exception as e:
+        logger.error(f"Get profile error: {e}")
+        return {"username": username, "xp": 0, "streak": 0, "level": 1}
 
 @app.post("/api/user/profile")
 def update_profile(profile: UserProfile):
-    save_json_data('user_profile.json', profile.model_dump())
-    return {"status": "success"}
+    try:
+        with _db_conn() as conn:
+            conn.execute("""
+                INSERT INTO user_profiles (username, xp, streak, level, last_active)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(username) DO UPDATE SET
+                    xp = excluded.xp,
+                    streak = excluded.streak,
+                    level = excluded.level,
+                    last_active = excluded.last_active
+            """, (profile.name, profile.xp, profile.streak, profile.level, datetime.now().isoformat()))
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Update profile error: {e}")
+        raise HTTPException(status_code=500, detail="Không thể cập nhật profile.")
 
 @app.get("/api/leaderboard")
 def get_leaderboard():

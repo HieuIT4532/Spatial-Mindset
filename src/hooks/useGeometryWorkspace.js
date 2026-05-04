@@ -3,10 +3,7 @@
  * Bao gồm: promptInput, geometryData, algebraData, loading, error, quiz
  */
 import { useState, useCallback, useRef } from 'react';
-import axios from 'axios';
-
-const BASE_URL = () =>
-  (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000');
+import { apiClient } from '../api/client';
 
 // Sanitize input: loại bỏ multiple choice options trước khi gửi backend
 const sanitizeQuery = (input) =>
@@ -49,29 +46,22 @@ export function useGeometryWorkspace({ gainXP, triggerCelebration }) {
     setLoading(true);
     resetState();
 
-    const baseUrl = BASE_URL();
-
     try {
       let resultMode = activeMode;
-
-      if (activeMode === 'GEOMETRY' || activeMode === 'VECTOR') {
-        const apiUrl = `${baseUrl}/api/geometry/calculate`;
         let query = activeMode === 'VECTOR'
           ? `${promptInput} (Hãy xử lý bài toán này dưới góc độ vector không gian, vẽ các mũi tên vector)`
           : promptInput;
         query = sanitizeQuery(query);
 
-        const response = await axios.post(apiUrl, {
+        const data = await apiClient.post('/api/geometry/calculate', {
           query,
           image: uploadedImage,
-        }, { timeout: 60000 });
+        });
 
-        const data = response.data;
         setGeometryData(data);
         setHintData(data.hint ?? null);
         setActiveStep(0);
 
-        // Auto switch mode nếu backend trả về type 2D
         if (data.type === '2D') {
           resultMode = 'GRAPH';
         }
@@ -79,16 +69,15 @@ export function useGeometryWorkspace({ gainXP, triggerCelebration }) {
         gainXP(data.xp_reward || 30);
 
       } else if (activeMode === 'GRAPH') {
-        const apiUrl = `${baseUrl}/api/algebra/solve`;
-        const response = await axios.post(apiUrl, {
+        const data = await apiClient.post('/api/algebra/solve', {
           query: promptInput,
           image: uploadedImage,
-        }, { timeout: 60000 });
+        });
 
-        setAlgebraData(response.data);
+        setAlgebraData(data);
         setShowAlgebraSolution(true);
-        if (response.data.function_string) {
-          setGraphExpression(response.data.function_string);
+        if (data.function_string) {
+          setGraphExpression(data.function_string);
         }
         setHintData(null);
         gainXP(40);
@@ -97,7 +86,6 @@ export function useGeometryWorkspace({ gainXP, triggerCelebration }) {
       if (controlsRef.current) {
         controlsRef.current.reset();
       }
-
       return resultMode;
 
     } catch (err) {

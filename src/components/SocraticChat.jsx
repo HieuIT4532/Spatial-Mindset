@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import { apiClient } from '../api/client';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -64,8 +64,7 @@ export default function SocraticChat({ isOpen, onClose, problemStatement, hint }
     setIsAITyping(true);
 
     try {
-      const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
-      const response = await axios.post(`${baseUrl}/api/socratic-hint`, {
+      const data = await apiClient.post('/api/socratic-hint', {
         problem_statement: problemStatement || 'Bài toán hình học không gian',
         student_wrong_step: text,
         theory_markdown: theory || 'Hình học không gian, góc nhị diện, khoảng cách từ điểm đến mặt phẳng',

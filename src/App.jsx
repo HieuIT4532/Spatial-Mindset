@@ -68,6 +68,8 @@ import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
 import { useUserSync } from './hooks/useUserSync';
 import useSettingsStore from './store/useSettingsStore';
+import useUserStore from './store/useUserStore';
+import { apiClient } from './api/client';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -77,25 +79,7 @@ import 'katex/dist/katex.min.css';
 // =====================
 // Helpers: Persistence
 // =====================
-const loadXP = () => {
-  const saved = localStorage.getItem('spatialmind_xp');
-  return saved ? parseInt(saved, 10) : 0;
-};
-
-const loadStreak = () => {
-  try {
-    const stored = JSON.parse(localStorage.getItem('daily_progress') || '{}');
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-
-    if (stored.date === today || stored.last_date === yesterday) {
-      return stored.streak || 0;
-    }
-    return 0;
-  } catch {
-    return 0;
-  }
-};
+// Persistence helpers removed - now using useUserStore
 
 
 // =====================
@@ -175,9 +159,8 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
   } = useSettingsStore();
   const [uploadedImage, setUploadedImage] = useState(null);
 
-  // Gamification state
-  const [xp, setXP] = useState(loadXP);
-  const [streak, setStreak] = useState(loadStreak);
+  // Gamification from Store
+  const { xp, streak, gainXP: storeGainXP, updateStreak, setXP } = useUserStore();
   const [showDailyChallenge, setShowDailyChallenge] = useState(false);
   const [particleTrigger, setParticleTrigger] = useState(0);
   const [completedSteps, setCompletedSteps] = useState(new Set());
@@ -204,7 +187,7 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
   const { user, isAuthenticated, logout, isOfflineMode, userProfile } = useAuth();
   const { isSynced, lastSync } = useUserSync({
     xp, streak, solvedProblems,
-    setXP, setStreak, setSolvedProblems,
+    setSolvedProblems,
   });
 
   // Quiz state
@@ -238,13 +221,11 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
     }, 0);
   };
 
-  // Sync profile with backend (AppData)
+  // Sync profile with backend
   const syncProfile = useCallback(async (currentXP, currentStreak) => {
     try {
-      const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
       const { current: r } = getRankInfo(currentXP);
-
-      await axios.post(`${baseUrl}/api/user/profile`, {
+      await apiClient.post('/api/user/profile', {
         name: "Học sinh",
         xp: currentXP,
         streak: currentStreak,
@@ -268,10 +249,9 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
-        const res = await axios.get(`${baseUrl}/api/user/profile`);
-        if (res.data.xp > xp) {
-          setXP(res.data.xp);
+        const data = await apiClient.get('/api/user/profile');
+        if (data.xp > xp) {
+          setXP(data.xp);
         }
       } catch (err) {
         console.warn("Backend offline, sử dụng local data");
@@ -290,10 +270,10 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Persist XP
+  // Streak update on mount
   useEffect(() => {
-    localStorage.setItem('spatialmind_xp', String(xp));
-  }, [xp]);
+    if (isStarted) updateStreak();
+  }, [isStarted, updateStreak]);
 
   // ── Keyboard Shortcuts (Ctrl+K, etc.) ──
   useEffect(() => {
@@ -401,9 +381,9 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
   }, [isWorkspaceMode, promptInput]);
 
   const gainXP = useCallback((amount) => {
-    setXP(prev => prev + amount);
+    storeGainXP(amount);
     setParticleTrigger(t => t + 1);
-  }, []);
+  }, [storeGainXP]);
 
   const handleGenerate = async () => {
     if (!promptInput.trim()) {
@@ -421,52 +401,38 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
       const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 
       if (activeMode === 'GEOMETRY' || activeMode === 'VECTOR') {
-        const apiUrl = baseUrl
-          ? `${baseUrl}/api/geometry/calculate`
-          : 'http://localhost:8000/api/geometry/calculate';
-
         let query = activeMode === 'VECTOR'
           ? `${promptInput} (Hãy xử lý bài toán này dưới góc độ vector không gian, vẽ các mũi tên vector)`
           : promptInput;
 
-        // Strip out multiple choice options (A., B., C., D.) before sending to the NLP backend
-        // to prevent 500 Internal Server Errors caused by parsing conflicts with geometric points.
         query = query.split(/\n\s*[A-D]\./)[0].trim();
 
-        const response = await axios.post(apiUrl, {
+        const data = await apiClient.post('/api/geometry/calculate', {
           query,
           image: uploadedImage
-        }, { timeout: 60000 }); // 60s timeout
+        });
 
-        const data = response.data;
         setGeometryData(data);
         setHintData(data.hint ?? null);
         setActiveStep(0);
 
-        // Auto switch mode
         if (data.type === '2D') {
           setActiveMode('GRAPH');
         } else {
           setActiveMode('GEOMETRY');
         }
-
-        // XP reward for generating
         gainXP(data.xp_reward || 30);
 
       } else if (activeMode === 'GRAPH') {
-        const apiUrl = baseUrl
-          ? `${baseUrl}/api/algebra/solve`
-          : 'http://localhost:8000/api/algebra/solve';
-
-        const response = await axios.post(apiUrl, {
+        const data = await apiClient.post('/api/algebra/solve', {
           query: promptInput,
           image: uploadedImage
-        }, { timeout: 60000 }); // 60s timeout
+        });
 
-        setAlgebraData(response.data);
+        setAlgebraData(data);
         setShowAlgebraSolution(true);
-        if (response.data.function_string) {
-          setGraphExpression(response.data.function_string);
+        if (data.function_string) {
+          setGraphExpression(data.function_string);
         }
         setHintData(null);
         gainXP(40);
@@ -625,23 +591,57 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
         </div>
       )}
 
-      {/* 🔮 Floating Sidebar — pushed below Navbar + sub-bar (14+8=22 = top-[88px]) */}
+      {/* 🔮 Floating Sidebar / Mobile Bottom Sheet */}
       {!isWorkspaceMode && (
         <motion.div
           initial={false}
-          animate={{
-            width: isSidebarCollapsed ? 80 : 380,
+          animate={window.innerWidth < 768 ? {
+            width: '100%',
+            height: isSidebarCollapsed ? 90 : '75vh',
             x: 0,
-            opacity: 1
+            y: 0,
+            bottom: 0,
+            left: 0,
+            borderRadius: isSidebarCollapsed ? '28px 28px 0 0' : '40px 40px 0 0'
+          } : {
+            width: isSidebarCollapsed ? 80 : 380,
+            height: 'calc(100vh - 100px)',
+            x: 0,
+            y: 0,
+            top: '88px',
+            left: '24px',
+            borderRadius: '32px'
           }}
-          className="fixed left-6 z-50 aqua-glass rounded-[28px] overflow-hidden flex flex-col shadow-2xl border-white/5 group/sidebar transition-all duration-500 ease-in-out"
-          style={{ top: '88px', height: 'calc(100vh - 100px)' }}
+          className={`fixed z-[100] overflow-hidden flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.6)] transition-all duration-700 ease-[0.23,1,0.32,1] ${
+            theme === 'dark' 
+              ? 'bg-[#020617]/80 backdrop-blur-[40px] border-t border-white/10 md:border border-white/5' 
+              : 'bg-white/90 backdrop-blur-[40px] border-t border-black/5 md:border border-black/5'
+          }`}
         >
+          {/* ✨ Premium Drag Handle for Mobile */}
+          {window.innerWidth < 768 && (
+            <div 
+              className="w-full flex flex-col items-center py-4 cursor-grab active:cursor-grabbing"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            >
+              <div className="w-16 h-1.5 rounded-full bg-white/10 overflow-hidden relative">
+                <motion.div 
+                  className="absolute inset-0 bg-cyan-400/50"
+                  animate={{ x: ['-100%', '100%'] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                />
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-cyan-500/40 mt-2">
+                {isSidebarCollapsed ? 'Kéo lên để xem' : 'Vuốt xuống để thu gọn'}
+              </span>
+            </div>
+          )}
+
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all z-[70]"
+            className={`absolute ${window.innerWidth < 768 ? 'top-6 right-8' : 'top-8 right-8'} p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-500 hover:text-cyan-400 transition-all z-[110] border border-white/5 hover:border-cyan-500/30 shadow-lg`}
           >
-            {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            {isSidebarCollapsed ? (window.innerWidth < 768 ? <PanelLeftOpen className="rotate-90" size={18} /> : <PanelLeftOpen size={18} />) : (window.innerWidth < 768 ? <PanelLeftClose className="rotate-90" size={18} /> : <PanelLeftClose size={18} />)}
           </button>
 
           <div className="p-8 flex flex-col h-full overflow-hidden">
@@ -1258,7 +1258,8 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
         onClose={() => setIsExercisePanelOpen(false)}
         lesson={selectedLesson}
         onXPgain={(amount) => {
-          gainXP(amount);
+          const newXP = xp + amount;
+          setXP(newXP);
         }}
         onSolveExercise={(question) => {
           setIsExercisePanelOpen(false);

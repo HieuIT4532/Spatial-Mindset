@@ -10,6 +10,7 @@ import { ArrowLeft, CheckCircle, Lightbulb, Play, Sparkles } from 'lucide-react'
 import 'mathlive';
 
 import { fetchProblemById } from '../../api/problemsApi';
+import { apiClient } from '../../api/client';
 import App from '../../App'; // Import App components or 3D Canvas
 import { Badge } from '../../components/ui/badge';
 
@@ -79,20 +80,19 @@ export default function ProblemWorkspace() {
   };
 
   const evaluateMathProblem = async (probId, explain, answer) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const explainLower = explain.toLowerCase();
-        const hasLogicalExplanation = explainLower.length > 20 && (explainLower.includes('đường cao') || explainLower.includes('góc') || explainLower.includes('khoảng cách') || explainLower.includes('vuông góc') || explainLower.includes('ta có') || explainLower.includes('suy ra'));
-
-        if (answer.trim() && hasLogicalExplanation) {
-          resolve({ status: 'AC', message: 'Lập luận hợp lý, xin chúc mừng!' });
-        } else if (answer.trim() && !hasLogicalExplanation) {
-          resolve({ status: 'WA', message: 'Kết quả có thể đúng nhưng bạn cần trình bày rõ các bước (ta có, suy ra, vuông góc...).' });
-        } else {
-          resolve({ status: 'WA', message: 'Kết quả và lập luận chưa chính xác.' });
-        }
-      }, 2500);
-    });
+    try {
+      const result = await apiClient.post('/api/evaluate-problem', {
+        problem_id: probId,
+        explanation: explain,
+        answer: answer,
+        problem_context: problem.content
+      });
+      return result; // Trả về { status, feedback, ai_analysis }
+    } catch (error) {
+      console.error("Evaluation Error:", error);
+      // Fallback nếu server sập
+      return { status: 'WA', feedback: 'Không thể kết nối với máy chủ chấm điểm.' };
+    }
   };
 
   const handleSubmit = async () => {
@@ -107,13 +107,13 @@ export default function ProblemWorkspace() {
     const result = await evaluateMathProblem(id, explanationText, finalAnswer);
 
     if (result.status === 'AC') {
-      showToast('success', `Accepted! ${result.message}`);
+      showToast('success', `Accepted! ${result.feedback}`);
       setTimeout(() => {
         setIsSubmitting(false);
         navigate('/problems'); // Back to problem list after success
       }, 2000);
     } else {
-      showToast('error', `Wrong Answer: ${result.message}`);
+      showToast('error', `${result.status === 'PE' ? 'Partial Correct' : 'Wrong Answer'}: ${result.feedback}`);
       setIsSubmitting(false);
     }
   };

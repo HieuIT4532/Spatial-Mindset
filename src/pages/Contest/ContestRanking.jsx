@@ -2,139 +2,27 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { ArrowLeft, Trophy, Search, User, Bug, Clock } from 'lucide-react';
+import { apiClient } from '../../api/client';
 
-// Custom Hook lấy dữ liệu Bảng xếp hạng Real-time (Giả lập Firebase Firestore onSnapshot)
+// Custom Hook lấy dữ liệu Bảng xếp hạng Real-time
 const useLiveRanking = (contestId) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchRanking = async () => {
+    try {
+      const result = await apiClient.get(`/api/contest/ranking/${contestId}`);
+      setData(result);
+    } catch (error) {
+      console.error("Fetch Ranking Error:", error);
+    }
+  };
+
   useEffect(() => {
-    // Giả lập dữ liệu ban đầu từ collection `contest_participations`
-    const initialData = [
-      {
-        id: '1',
-        rank: 1,
-        username: 'Trung Hiếu',
-        avatar: 'TH',
-        score: 22,
-        finishTime: '00:58:12',
-        q1: { time: '00:04:10', penalty: 0 },
-        q2: { time: '00:12:30', penalty: 0 },
-        q3: { time: '00:25:10', penalty: 0 },
-        q4: { time: '00:58:12', penalty: 0 },
-      },
-      {
-        id: '2',
-        rank: 2,
-        username: 'Quốc Hán',
-        avatar: 'QH',
-        score: 18,
-        finishTime: '01:12:45',
-        q1: { time: '00:05:12', penalty: 0 },
-        q2: { time: '00:15:30', penalty: 1 },
-        q3: { time: '00:32:10', penalty: 0 },
-        q4: { time: '01:07:45', penalty: 0 },
-      },
-      {
-        id: '3',
-        rank: 3,
-        username: 'Đức Dũng',
-        avatar: 'DD',
-        score: 12,
-        finishTime: '01:05:20',
-        q1: { time: '00:08:45', penalty: 0 },
-        q2: { time: '00:20:10', penalty: 0 },
-        q3: { time: '00:45:30', penalty: 1 },
-        q4: { time: null, penalty: 0 },
-      },
-      {
-        id: '4',
-        rank: 4,
-        username: 'Quỳnh Trang',
-        avatar: 'QT',
-        score: 7,
-        finishTime: '00:45:00',
-        q1: { time: '00:12:00', penalty: 1 },
-        q2: { time: '00:40:00', penalty: 0 },
-        q3: { time: null, penalty: 3 },
-        q4: { time: null, penalty: 0 },
-      },
-      {
-        id: '5',
-        rank: 5,
-        username: 'Anh Thư',
-        avatar: 'AT',
-        score: 3,
-        finishTime: '00:20:00',
-        q1: { time: '00:20:00', penalty: 0 },
-        q2: { time: null, penalty: 1 },
-        q3: { time: null, penalty: 0 },
-        q4: { time: null, penalty: 0 },
-      },
-      {
-        id: '6',
-        rank: 6,
-        username: 'Phương Anh',
-        avatar: 'PA',
-        score: 3,
-        finishTime: '00:25:30',
-        q1: { time: '00:25:30', penalty: 0 },
-        q2: { time: null, penalty: 0 },
-        q3: { time: null, penalty: 0 },
-        q4: { time: null, penalty: 0 },
-      },
-      {
-        id: '7',
-        rank: 7,
-        username: 'Hoàng Hiệp',
-        avatar: 'HH',
-        score: 0,
-        finishTime: '00:00:00',
-        q1: { time: null, penalty: 2 },
-        q2: { time: null, penalty: 0 },
-        q3: { time: null, penalty: 0 },
-        q4: { time: null, penalty: 0 },
-      },
-      {
-        id: '8',
-        rank: 8,
-        username: 'Lê Trang',
-        avatar: 'LT',
-        score: 0,
-        finishTime: '00:00:00',
-        q1: { time: null, penalty: 0 },
-        q2: { time: null, penalty: 0 },
-        q3: { time: null, penalty: 0 },
-        q4: { time: null, penalty: 0 },
-      }
-    ];
-
-    const timer = setTimeout(() => {
-      setData(initialData);
-      setLoading(false);
-    }, 1000);
-
-    // Giả lập sự kiện onSnapshot trả về dữ liệu mới (Realtime update)
-    const interval = setInterval(() => {
-      setData(prev => {
-        const newData = [...prev];
-        // Thí sinh hạng 4 giải xong Q2 sau vài giây
-        if (newData[3] && !newData[3].q2.time) {
-          newData[3] = {
-            ...newData[3],
-            score: 7,
-            finishTime: '00:45:15',
-            q2: { time: '00:45:15', penalty: 1 }
-          };
-        }
-        return newData;
-      });
-    }, 5000);
-
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
+    fetchRanking();
+    // Poll dữ liệu mỗi 10 giây để giả lập real-time
+    const interval = setInterval(fetchRanking, 10000);
+    return () => clearInterval(interval);
   }, [contestId]);
 
   return { data, loading };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import { apiClient } from '../api/client';
 import { X, Zap, Flame, Trophy, ChevronRight, Sparkles, Check, WifiOff } from 'lucide-react';
 
 const DIFF_LABEL = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' };
@@ -78,10 +78,9 @@ export default function DailyChallenge({ onClose, onSelectChallenge, onXPGain })
     }
 
     // Fetch challenges – fallback to local bank if backend offline
-    const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
-    axios.get(`${baseUrl}/api/daily-challenge`, { timeout: 3000 })
+    apiClient.get('/api/daily-challenge', { timeout: 3000 })
       .then(res => {
-        setChallenges(res.data.challenges || []);
+        setChallenges(res.challenges || []);
         setIsOffline(false);
         setLoading(false);
       })
