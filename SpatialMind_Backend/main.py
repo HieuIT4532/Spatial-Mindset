@@ -1,22 +1,33 @@
 import os
 import json
+import sqlite3
 import urllib.request
 import urllib.error
 import logging
 import base64
 import random
-from datetime import date
+import re
+from contextlib import contextmanager
+from datetime import date, datetime
 import sympy as sp
 from fastapi import FastAPI, HTTPException, Request
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import List, Dict, Any, Optional, Union
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 import time
+
+# ─── Cấu hình logging đầy đủ ───────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
+logger = logging.getLogger('spatialmind')
 
 # Load challenge bank
 _challenge_bank_path = os.path.join(os.path.dirname(__file__), 'challenge_bank.json')
@@ -46,16 +57,25 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_api_key_here":
 app = FastAPI(
     title="SpatialMind API with Gemini AI",
     description="API cho ứng dụng SpatialMind v3.0 — Auth, Gallery, AI Proxy, Notifications",
-    version="v3.0"
+    version="v3.1"
+)
+
+# CORS — Whitelist qua env ALLOWED_ORIGINS, fallback cho dev
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS: list[str] = (
+    [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    if _raw_origins
+    else ["http://localhost:5173", "http://localhost:4173", "https://spatial-mind.vercel.app"]
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Cho phép Frontend từ Vercel truy cập
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
+logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
 
 # ── v3.0: Wire Notification Routes ──
 try:
@@ -74,65 +94,172 @@ except Exception as e:
     ai_proxy = None
     logging.warning(f"AI Proxy not loaded: {e}")
 
-# ── v3.0: Health & Gallery Endpoints ──
+# ── v3.1: SQLite Gallery Store ──────────────────────────────────────────────
+_DB_PATH = os.path.join(get_appdata_dir() if False else os.path.dirname(__file__), 'gallery.db')
 
+
+@contextmanager
+def _db_conn():
+    """Context manager trả về SQLite connection an toàn."""
+    conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _init_db():
+    """Khởi tạo bảng gallery nếu chưa có."""
+    with _db_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS gallery_posts (
+                id          TEXT PRIMARY KEY,
+                title       TEXT NOT NULL DEFAULT 'Untitled',
+                problem     TEXT NOT NULL DEFAULT '',
+                difficulty  TEXT NOT NULL DEFAULT 'medium',
+                geometry_data TEXT,
+                author_name TEXT NOT NULL DEFAULT 'Ẩn danh',
+                author_uid  TEXT NOT NULL DEFAULT '',
+                votes       INTEGER NOT NULL DEFAULT 0,
+                created_at  TEXT NOT NULL
+            )
+        """)
+    logger.info(f"Gallery DB initialized at {_DB_PATH}")
+
+
+# Khởi tạo DB ngay khi module load
+try:
+    # get_appdata_dir cần được định nghĩa trước — ta sẽ inline nó ở đây
+    if os.name == 'nt':
+        _SM_DIR = os.path.join(os.getenv('APPDATA', os.path.dirname(__file__)), 'SpatialMind')
+    else:
+        _SM_DIR = os.path.join(os.path.expanduser('~'), 'SpatialMind')
+    os.makedirs(_SM_DIR, exist_ok=True)
+    _DB_PATH = os.path.join(_SM_DIR, 'gallery.db')
+    _init_db()
+except Exception as _e:
+    logger.warning(f"DB init fallback to local dir: {_e}")
+    _DB_PATH = os.path.join(os.path.dirname(__file__), 'gallery.db')
+    _init_db()
+
+
+# ── Health Endpoint ──────────────────────────────────────────────────────────
 @app.get("/api/health")
 async def health_check():
     """Health check + AI proxy status"""
     proxy_health = ai_proxy.health_report() if ai_proxy else {"status": "not_loaded"}
     return {
         "status": "ok",
-        "version": "3.0",
+        "version": "3.1",
         "gemini_configured": bool(GEMINI_API_KEY),
         "ai_proxy": proxy_health,
+        "gallery_db": "sqlite",
     }
 
-# Gallery: In-memory store (upgrade to Firestore in production)
-_gallery_posts = []
-
 @app.get("/api/gallery/feed")
-async def gallery_feed(sort: str = "hot", page: int = 1, search: str = None):
-    """Lấy danh sách bài đăng gallery"""
-    posts = _gallery_posts.copy()
-    if search:
-        posts = [p for p in posts if search.lower() in p.get("title", "").lower() or search.lower() in p.get("problem", "").lower()]
-    if sort == "hot":
-        posts.sort(key=lambda p: p.get("votes", 0), reverse=True)
-    elif sort == "new":
-        posts.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+async def gallery_feed(sort: str = "hot", page: int = 1, search: str = ""):
+    """Lấy danh sách bài đăng gallery từ SQLite"""
     per_page = 20
-    start = (page - 1) * per_page
-    return {"posts": posts[start:start + per_page], "total": len(posts)}
+    offset = (page - 1) * per_page
+    order_by = "votes DESC" if sort == "hot" else "created_at DESC"
+
+    with _db_conn() as conn:
+        if search:
+            q = f"%{search.lower()}%"
+            rows = conn.execute(
+                f"""SELECT * FROM gallery_posts
+                    WHERE lower(title) LIKE ? OR lower(problem) LIKE ?
+                    ORDER BY {order_by} LIMIT ? OFFSET ?""",
+                (q, q, per_page, offset)
+            ).fetchall()
+            total = conn.execute(
+                "SELECT COUNT(*) FROM gallery_posts WHERE lower(title) LIKE ? OR lower(problem) LIKE ?",
+                (q, q)
+            ).fetchone()[0]
+        else:
+            rows = conn.execute(
+                f"SELECT * FROM gallery_posts ORDER BY {order_by} LIMIT ? OFFSET ?",
+                (per_page, offset)
+            ).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM gallery_posts").fetchone()[0]
+
+    posts = []
+    for r in rows:
+        post = dict(r)
+        # Deserialize geometry_data JSON
+        if post.get("geometry_data"):
+            try:
+                post["geometryData"] = json.loads(post["geometry_data"])
+            except Exception:
+                post["geometryData"] = None
+        post["authorName"] = post.pop("author_name", "Ẩn danh")
+        post["authorUid"] = post.pop("author_uid", "")
+        post["date"] = post.get("created_at", "")
+        posts.append(post)
+
+    return {"posts": posts, "total": total}
+
 
 @app.post("/api/gallery/submit")
 async def gallery_submit(request: Request):
-    """Submit bài lên gallery"""
-    data = await request.json()
-    post = {
-        "id": f"post-{len(_gallery_posts) + 1}-{int(time.time())}",
-        "title": data.get("title", "Untitled"),
-        "problem": data.get("problem", ""),
-        "difficulty": data.get("difficulty", "medium"),
-        "geometryData": data.get("geometryData"),
-        "authorName": data.get("authorName", "Ẩn danh"),
-        "authorUid": data.get("uid", ""),
-        "votes": 0,
-        "created_at": date.today().isoformat(),
-        "date": "Hôm nay",
-    }
-    _gallery_posts.append(post)
-    return {"status": "ok", "id": post["id"]}
+    """Submit bài lên gallery — lưu vào SQLite"""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Dữ liệu gửi lên không hợp lệ.")
+
+    post_id = f"post-{int(time.time() * 1000)}"
+    title = str(data.get("title", "Untitled"))[:200]
+    problem = str(data.get("problem", ""))[:2000]
+    difficulty = data.get("difficulty", "medium")
+    if difficulty not in ("easy", "medium", "hard"):
+        difficulty = "medium"
+    author_name = str(data.get("authorName", "Ẩn danh"))[:100]
+    author_uid = str(data.get("uid", ""))[:128]
+    geometry_data = data.get("geometryData")
+    geometry_json = json.dumps(geometry_data, ensure_ascii=False) if geometry_data else None
+    created_at = datetime.utcnow().isoformat()
+
+    with _db_conn() as conn:
+        conn.execute(
+            """INSERT INTO gallery_posts
+               (id, title, problem, difficulty, geometry_data, author_name, author_uid, votes, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+            (post_id, title, problem, difficulty, geometry_json, author_name, author_uid, created_at)
+        )
+
+    logger.info(f"Gallery: bài mới '{title}' (id={post_id}) từ uid={author_uid}")
+    return {"status": "ok", "id": post_id}
+
 
 @app.post("/api/gallery/{post_id}/vote")
 async def gallery_vote(post_id: str, request: Request):
-    """Vote cho bài"""
-    data = await request.json()
+    """Vote cho bài — cập nhật SQLite"""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Dữ liệu không hợp lệ.")
+
     direction = data.get("direction", "up")
-    for p in _gallery_posts:
-        if p["id"] == post_id:
-            p["votes"] += 1 if direction == "up" else -1
-            return {"status": "ok", "votes": p["votes"]}
-    raise HTTPException(status_code=404, detail="Post not found")
+    delta = 1 if direction == "up" else -1
+
+    with _db_conn() as conn:
+        row = conn.execute(
+            "SELECT votes FROM gallery_posts WHERE id = ?", (post_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy bài đăng.")
+        new_votes = row["votes"] + delta
+        conn.execute(
+            "UPDATE gallery_posts SET votes = ? WHERE id = ?", (new_votes, post_id)
+        )
+
+    return {"status": "ok", "votes": new_votes}
 
 @app.post("/api/user/sync-beacon")
 async def sync_beacon(request: Request):
@@ -254,10 +381,21 @@ class SocraticResponse(BaseModel):
 class AlgebraRequest(BaseModel):
     query: str
 
+    @field_validator('query')
+    @classmethod
+    def validate_query(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError('Đề bài không được để trống.')
+        if len(v) > 2000:
+            raise ValueError('Đề bài quá dài (tối đa 2000 ký tự).')
+        return v
+
+
 class AlgebraResponse(BaseModel):
     result_latex: str
     steps: List[str]
-    function_string: Optional[str] = None # Dùng để backend gửi chuỗi hàm số cho frontend vẽ đồ thị
+    function_string: Optional[str] = None  # Chuỗi hàm số để frontend vẽ đồ thị
 
 # --- Prompt & logic từ gemini_spatial_parser.py ---
 # --- Prompt & logic upgrade ---
@@ -456,19 +594,24 @@ def solve_algebra(request: AlgebraRequest):
         
         data = json.loads(response_text)
         
-        # Ở đây chúng ta có thể thực hiện tính toán SymPy thực tế để kiểm chứng 
-        # Ví dụ: Nếu có function_string, ta có thể dùng SymPy để tính đạo hàm thực tế
+        # Kiểm chứng và làm giàu kết quả bằng SymPy (an toàn)
         if data.get("function_string"):
-            try:
-                x = sp.Symbol('x')
-                # Lưu ý: eval() trong môi trường thực tế cần được kiểm soát chặt chẽ
-                # Ở đây ta dùng sp.sympify để an toàn hơn
-                expr = sp.sympify(data["function_string"])
-                # Ví dụ: Luôn tính thêm đạo hàm để làm phong phú kết quả
-                derivative = sp.diff(expr, x)
-                data["steps"].append(f"Đạo hàm bổ sung bởi SymPy: ${sp.latex(derivative)}$")
-            except Exception as se:
-                logging.warning(f"SymPy Verification Error: {se}")
+            func_str = str(data["function_string"]).strip()
+            # Chỉ cho phép ký tự an toàn — tránh code injection
+            _SAFE_PATTERN = re.compile(r'^[a-zA-Z0-9\s\+\-\*\/\^\(\)\.\,\_\[\]\{\}\=\!\<\>\|\&\~\%]+$')
+            if func_str and _SAFE_PATTERN.match(func_str) and len(func_str) < 300:
+                try:
+                    x = sp.Symbol('x')
+                    local_dict = {"x": x, "e": sp.E, "pi": sp.pi}
+                    expr = sp.sympify(func_str, locals=local_dict, evaluate=True)
+                    derivative = sp.diff(expr, x)
+                    data["steps"].append(
+                        f"✓ Kiểm chứng SymPy — Đạo hàm: $f'(x) = {sp.latex(derivative)}$"
+                    )
+                except Exception as se:
+                    logger.warning(f"SymPy verification error: {se}")
+            else:
+                logger.warning(f"SymPy skipped: unsafe function_string '{func_str[:50]}'")
 
         return AlgebraResponse(
             result_latex=data.get("result_latex", ""),

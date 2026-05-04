@@ -39,11 +39,21 @@ export default function ContestWorkspace() {
   const [finalAnswer, setFinalAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
+  const [appReady, setAppReady] = useState(false); // Fix black screen
 
   const [showMathBuilder, setShowMathBuilder] = useState(false);
   const [mathInput, setMathInput] = useState('');
 
   const { activeContestId, timeLeft, isStarted, startContest, decrementTime, addPenalty } = useContestStore();
+
+  // FIX BLACK SCREEN: Đảm bảo App component không bị block bởi LandingPage
+  useEffect(() => {
+    // Set flag để App biết đã "started" — tránh LandingPage overlay
+    localStorage.setItem('spatialmind_started', 'true');
+    // Delay nhỏ để component tree settle trước khi render App
+    const readyTimer = setTimeout(() => setAppReady(true), 100);
+    return () => clearTimeout(readyTimer);
+  }, []);
 
   // Timer & Contest State Initialization
   useEffect(() => {
@@ -55,7 +65,7 @@ export default function ContestWorkspace() {
       decrementTime();
     }, 1000);
     return () => clearInterval(timer);
-  }, [contestId, activeContestId, isStarted, startContest, decrementTime]);
+  }, [contestId]); // Chỉ depend vào contestId để tránh re-init loop
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600);
@@ -337,8 +347,24 @@ export default function ContestWorkspace() {
           {/* Pane Phải: Trực quan 3D */}
           <Panel defaultSize={50} minSize={30}>
             <div className="h-full w-full relative bg-[#050505] flex flex-col">
-              <div className="flex-1">
-                <App isWorkspaceMode={true} initialProblem={{ title: problem.title, content: problem.content }} />
+              <div className="flex-1 overflow-hidden">
+                {/* Guard: chỉ render App khi đã ready để tránh black screen */}
+                {!appReady ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-4">
+                    <div className="relative w-12 h-12">
+                      <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+                      <div className="absolute inset-2 rounded-full border border-violet-500/20 border-t-violet-400/60 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '3s' }} />
+                    </div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest animate-pulse">
+                      Khởi tạo không gian 3D...
+                    </p>
+                  </div>
+                ) : (
+                  <App
+                    isWorkspaceMode={true}
+                    initialProblem={{ title: problem.title, content: problem.content }}
+                  />
+                )}
               </div>
             </div>
           </Panel>

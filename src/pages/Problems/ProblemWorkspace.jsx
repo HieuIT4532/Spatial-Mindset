@@ -28,9 +28,17 @@ export default function ProblemWorkspace() {
   const [finalAnswer, setFinalAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
+  const [appReady, setAppReady] = useState(false); // Fix black screen
 
   const [showMathBuilder, setShowMathBuilder] = useState(false);
   const [mathInput, setMathInput] = useState('');
+
+  // FIX BLACK SCREEN: set started flag trước khi render App
+  useEffect(() => {
+    localStorage.setItem('spatialmind_started', 'true');
+    const t = setTimeout(() => setAppReady(true), 100);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleResetCamera = () => {
     window.dispatchEvent(new CustomEvent('spatialmind-reset-view'));
@@ -111,7 +119,15 @@ export default function ProblemWorkspace() {
   };
 
   if (isLoading) {
-    return <div className="h-screen w-full flex items-center justify-center font-sans bg-[#0a0a0a] text-white">Đang tải đề bài...</div>;
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center font-sans bg-[#0a0a0a] gap-4">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+          <div className="absolute inset-2 rounded-full border border-violet-500/20 border-t-violet-400/60 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '3s' }} />
+        </div>
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest animate-pulse">Đang tải đề bài...</p>
+      </div>
+    );
   }
 
   if (!problem) {
@@ -308,8 +324,19 @@ export default function ProblemWorkspace() {
 
         {/* Right Panel: 3D Workspace */}
         <Panel defaultSize={60}>
-          <div className="h-full w-full relative">
-            <App isWorkspaceMode={true} initialProblem={problem} />
+          <div className="h-full w-full relative overflow-hidden">
+            {/* Guard: chỉ render App khi ready — tránh black screen */}
+            {!appReady ? (
+              <div className="flex flex-col items-center justify-center h-full gap-4 bg-[#050505]">
+                <div className="relative w-12 h-12">
+                  <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+                  <div className="absolute inset-2 rounded-full border border-violet-500/20 border-t-violet-400/60 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '3s' }} />
+                </div>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest animate-pulse">Khởi tạo không gian 3D...</p>
+              </div>
+            ) : (
+              <App isWorkspaceMode={true} initialProblem={problem} />
+            )}
           </div>
         </Panel>
       </PanelGroup>

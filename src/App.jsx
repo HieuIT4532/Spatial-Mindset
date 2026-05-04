@@ -63,6 +63,7 @@ import CommandPalette from './components/CommandPalette';
 import CommunityGallery from './components/CommunityGallery';
 import NotificationSettings from './components/NotificationSettings';
 import Navbar from './components/Navbar';
+import { SidebarSkeleton, CanvasSkeleton } from './components/SkeletonLoader';
 import { getRankInfo } from './components/GameHUD';
 import { useAuth } from './contexts/AuthContext';
 import { useUserSync } from './hooks/useUserSync';
@@ -72,7 +73,6 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
-// ... (các thành phần khác)
 
 // =====================
 // Helpers: Persistence
@@ -99,28 +99,38 @@ const loadStreak = () => {
 
 
 // =====================
-// Component: Scene Loader (3D Fallback)
+// Component: Scene Loader (3D Fallback) — cải thiện với animated orb
 // =====================
 function SceneLoader() {
   return (
     <Html center>
-      <div className="flex flex-col items-center gap-4 bg-black/40 backdrop-blur-xl p-8 rounded-[32px] border border-white/10 shadow-2xl min-w-[200px]">
-        <div className="relative">
-          <Loader2 className="animate-spin text-cyan-400" size={40} />
-          <div className="absolute inset-0 blur-lg bg-cyan-400/20 animate-pulse" />
+      <div className="flex flex-col items-center gap-4 bg-black/40 backdrop-blur-xl p-8 rounded-[32px] border border-white/10 shadow-2xl min-w-[220px]">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+          <div className="absolute inset-2 rounded-full border-2 border-violet-500/20 border-t-violet-400/60" style={{ animation: 'spin 3s linear infinite reverse' }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-3 h-3 rounded-full bg-cyan-400/50 animate-pulse" />
+          </div>
         </div>
         <div className="flex flex-col items-center gap-1">
           <p className="text-cyan-400 font-black text-[10px] uppercase tracking-[0.3em] animate-pulse">
-            Loading Space
+            AI đang phân tích...
           </p>
           <p className="text-slate-500 text-[8px] font-bold uppercase tracking-widest">
             Khởi tạo không gian 3D
           </p>
         </div>
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"
+              style={{ animationDelay: `${i * 0.4}s` }} />
+          ))}
+        </div>
       </div>
     </Html>
   );
 }
+
 
 // =====================
 // Helpers: LaTeX
@@ -784,7 +794,18 @@ export default function App({ isWorkspaceMode = false, initialProblem = null }) 
 
                 {/* Steps Area */}
                 <AnimatePresence>
-                  {activeMode === 'GEOMETRY' && geometryData && (
+                  {/* Skeleton khi đang load */}
+                  {loading && (
+                    <motion.div
+                      key="skeleton"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <SidebarSkeleton />
+                    </motion.div>
+                  )}
+                  {activeMode === 'GEOMETRY' && geometryData && !loading && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4 border-t border-white/5 space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tiến trình giải</span>
